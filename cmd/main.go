@@ -4,10 +4,6 @@ import (
 	"flag"
 	"log"
 	"os"
-
-	services "github.com/Romero027/bookinfo-grpc/services"
-	"github.com/Romero027/bookinfo-grpc/tracing"
-
 )
 
 type server interface {
