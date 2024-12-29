@@ -59,7 +59,7 @@ metfrontendata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - RefrontendWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: frontend-storage
@@ -73,7 +73,7 @@ metfrontendata:
   name: frontend-pvc
 spec:
   accessModes:
-    - RefrontendWriteOnce
+    - ReadWriteOnce
   storageClassName: frontend-storage
   resources:
     requests:

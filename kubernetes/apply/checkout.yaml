@@ -59,7 +59,7 @@ metcheckoutata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - RecheckoutWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: checkout-storage
@@ -73,7 +73,7 @@ metcheckoutata:
   name: checkout-pvc
 spec:
   accessModes:
-    - RecheckoutWriteOnce
+    - ReadWriteOnce
   storageClassName: checkout-storage
   resources:
     requests:

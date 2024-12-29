@@ -59,7 +59,7 @@ metrecommendationata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - RerecommendationWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: recommendation-storage
@@ -73,7 +73,7 @@ metrecommendationata:
   name: recommendation-pvc
 spec:
   accessModes:
-    - RerecommendationWriteOnce
+    - ReadWriteOnce
   storageClassName: recommendation-storage
   resources:
     requests:

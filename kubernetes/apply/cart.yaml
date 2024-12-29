@@ -59,7 +59,7 @@ metcartata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - RecartWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: cart-storage
@@ -73,7 +73,7 @@ metcartata:
   name: cart-pvc
 spec:
   accessModes:
-    - RecartWriteOnce
+    - ReadWriteOnce
   storageClassName: cart-storage
   resources:
     requests:

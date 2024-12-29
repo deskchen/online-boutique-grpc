@@ -59,7 +59,7 @@ metemailata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - ReemailWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: email-storage
@@ -73,7 +73,7 @@ metemailata:
   name: email-pvc
 spec:
   accessModes:
-    - ReemailWriteOnce
+    - ReadWriteOnce
   storageClassName: email-storage
   resources:
     requests:

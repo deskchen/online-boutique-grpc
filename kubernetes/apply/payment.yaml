@@ -59,7 +59,7 @@ metpaymentata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - RepaymentWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: payment-storage
@@ -73,7 +73,7 @@ metpaymentata:
   name: payment-pvc
 spec:
   accessModes:
-    - RepaymentWriteOnce
+    - ReadWriteOnce
   storageClassName: payment-storage
   resources:
     requests:

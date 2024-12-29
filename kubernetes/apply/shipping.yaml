@@ -59,7 +59,7 @@ metshippingata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - ReshippingWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: shipping-storage
@@ -73,7 +73,7 @@ metshippingata:
   name: shipping-pvc
 spec:
   accessModes:
-    - ReshippingWriteOnce
+    - ReadWriteOnce
   storageClassName: shipping-storage
   resources:
     requests:

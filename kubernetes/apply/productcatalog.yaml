@@ -59,7 +59,7 @@ metproductcatalogata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - ReproductcatalogWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: productcatalog-storage
@@ -73,7 +73,7 @@ metproductcatalogata:
   name: productcatalog-pvc
 spec:
   accessModes:
-    - ReproductcatalogWriteOnce
+    - ReadWriteOnce
   storageClassName: productcatalog-storage
   resources:
     requests:

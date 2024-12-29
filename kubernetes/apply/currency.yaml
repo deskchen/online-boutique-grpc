@@ -59,7 +59,7 @@ metcurrencyata:
 spec:
   volumeMode: Filesystem
   accessModes:
-    - RecurrencyWriteOnce
+    - ReadWriteOnce
   capacity:
     storage: 1Gi
   storageClassName: currency-storage
@@ -73,7 +73,7 @@ metcurrencyata:
   name: currency-pvc
 spec:
   accessModes:
-    - RecurrencyWriteOnce
+    - ReadWriteOnce
   storageClassName: currency-storage
   resources:
     requests:
