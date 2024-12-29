@@ -13,26 +13,29 @@ type server interface {
 func main() {
 	var (
 		// port            = flag.Int("port", 8080, "The service port")
-		productpageport = flag.Int("productpageaddr", 8080, "productpage server port")
-		detailsport     = flag.Int("detailsport", 8081, "details service port")
-		ratingsport     = flag.Int("ratingsport", 8082, "details service port")
-		reviewsport     = flag.Int("reviewsport", 8083, "details service port")
-		
-		detailsaddr     = flag.String("detailsaddr", "details:8081", "reviews service addr")
-		ratingsaddr     = flag.String("ratingsaddr", "ratings:8082", "ratings server addr")
-		reviewsaddr     = flag.String("reviewsaddr", "reviews:8083", "reviews service addr")
+		cartport           = flag.Int("cartaddr", 8080, "cart service port")
+		productcatalogport = flag.Int("productcatalogport", 8081, "productcatalog service port")
+		currencyport       = flag.Int("currencyport", 8082, "currency service port")
+		paymentport        = flag.Int("paymentport", 8083, "payment service port")
+		shippingport       = flag.Int("shippingport", 8084, "shipping service port")
+		emailport          = flag.Int("emailport", 8085, "email service port")
+		checkoutport       = flag.Int("checkoutport", 8086, "checkout service port")
+		recommendationport = flag.Int("recommendationport", 8087, "recommendation service port")
+		adport             = flag.Int("adport", 8088, "ad service port")
 
-		jaegeraddr 		= flag.String("jaegeraddr", "jaeger:6831", "jaeger tracing addr")
+		cartaddr           = flag.String("cartaddr", "cart:8080", "cart service addr")
+		productcatalogaddr = flag.String("productcatalogaddr", "productcatalog:8081", "productcatalog service addr")
+		currencyaddr       = flag.String("currencyaddr", "currency:8082", "currency service addr")
+		paymentaddr        = flag.String("paymentaddr", "payment:8083", "payment service addr")
+		shippingaddr       = flag.String("shippingaddr", "shipping:8084", "shipping service addr")
+		emailaddr          = flag.String("emailaddr", "email:8085", "email service addr")
+		checkoutaddr       = flag.String("checkoutaddr", "checkout:8086", "checkout service addr")
+		recommendationaddr = flag.String("recommendationaddr", "recommendation:8087", "recommendation service addr")
+		adaddr             = flag.String("adaddr", "ad:8088", "ad service addr")
 
-		details_mongodb_addr = flag.String("details_mongodb_addr", "mongodb-details:27017", "details mongodb storage addr") 
-		ratings_mongodb_addr = flag.String("ratings_mongodb_addr", "mongodb-ratings:27017", "ratings mongodb storage addr") 
-		reviews_mongodb_addr = flag.String("reviews_mongodb_addr", "mongodb-reviews:27017", "reviews mongodb storage addr") 
-		// detailsaddr     = flag.String("detailsaddr", ":8081", "reviews service addr")
-		// ratingsaddr     = flag.String("ratingsaddr", ":8082", "ratings server addr")
-		// reviewsaddr     = flag.String("reviewsaddr", ":8083", "reviews service addr")
+		cart_redis_addr = flag.String("cart_redis_addr", "redis:6379", "cart redis addr")
 	)
 	flag.Parse()
-
 
 	var srv server
 	var cmd = os.Args[1]
@@ -44,18 +47,17 @@ func main() {
 	}
 	log.Printf("tracer inited for cmd %s", cmd)
 
-
 	switch cmd {
 	case "details":
 		srv = services.NewDetails(
-			*detailsport, 
-			tracer, 
+			*detailsport,
+			tracer,
 			*details_mongodb_addr,
 		)
 	case "ratings":
 		srv = services.NewRatings(
-			*ratingsport, 
-			tracer, 
+			*ratingsport,
+			tracer,
 			*ratings_mongodb_addr,
 		)
 	case "reviews":
