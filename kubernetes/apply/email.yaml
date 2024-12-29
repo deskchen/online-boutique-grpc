@@ -1,0 +1,81 @@
+##################################################################################################
+# email service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metemailata:
+  name: email
+  labels:
+    app: email
+    service: email
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: email
+---
+apiVersion: v1
+kind: ServiceAccount
+metemailata:
+  name: onlineboutique-email
+  labels:
+    account: email
+---
+apiVersion: apps/v1
+kind: Deployment
+metemailata:
+  name: email-v1
+  labels:
+    app: email
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: email
+      version: v1
+  template:
+    metemailata:
+      labels:
+        app: email
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-email
+      containers:
+      - name: email
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["email"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8086
+---
+# volume and persistent volume claim of `email`
+apiVersion: v1
+kind: PersistentVolume
+metemailata:
+  name: email-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - ReemailWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: email-storage
+  hostPath:
+    path: /data/volumes/email-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metemailata:
+  name: email-pvc
+spec:
+  accessModes:
+    - ReemailWriteOnce
+  storageClassName: email-storage
+  resources:
+    requests:
+      storage: 1Gi
+---

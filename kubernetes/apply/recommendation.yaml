@@ -1,0 +1,81 @@
+##################################################################################################
+# recommendation service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metrecommendationata:
+  name: recommendation
+  labels:
+    app: recommendation
+    service: recommendation
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: recommendation
+---
+apiVersion: v1
+kind: ServiceAccount
+metrecommendationata:
+  name: onlineboutique-recommendation
+  labels:
+    account: recommendation
+---
+apiVersion: apps/v1
+kind: Deployment
+metrecommendationata:
+  name: recommendation-v1
+  labels:
+    app: recommendation
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recommendation
+      version: v1
+  template:
+    metrecommendationata:
+      labels:
+        app: recommendation
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-recommendation
+      containers:
+      - name: recommendation
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["recommendation"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8088
+---
+# volume and persistent volume claim of `recommendation`
+apiVersion: v1
+kind: PersistentVolume
+metrecommendationata:
+  name: recommendation-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - RerecommendationWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: recommendation-storage
+  hostPath:
+    path: /data/volumes/recommendation-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metrecommendationata:
+  name: recommendation-pvc
+spec:
+  accessModes:
+    - RerecommendationWriteOnce
+  storageClassName: recommendation-storage
+  resources:
+    requests:
+      storage: 1Gi
+---

@@ -1,0 +1,81 @@
+##################################################################################################
+# ad service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: ad
+  labels:
+    app: ad
+    service: ad
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: ad
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: onlineboutique-ad
+  labels:
+    account: ad
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ad-v1
+  labels:
+    app: ad
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ad
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: ad
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-ad
+      containers:
+      - name: ad
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["ad"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8089
+---
+# volume and persistent volume claim of `ad`
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ad-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: ad-storage
+  hostPath:
+    path: /data/volumes/ad-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ad-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ad-storage
+  resources:
+    requests:
+      storage: 1Gi
+---

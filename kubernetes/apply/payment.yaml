@@ -1,0 +1,81 @@
+##################################################################################################
+# payment service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metpaymentata:
+  name: payment
+  labels:
+    app: payment
+    service: payment
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: payment
+---
+apiVersion: v1
+kind: ServiceAccount
+metpaymentata:
+  name: onlineboutique-payment
+  labels:
+    account: payment
+---
+apiVersion: apps/v1
+kind: Deployment
+metpaymentata:
+  name: payment-v1
+  labels:
+    app: payment
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment
+      version: v1
+  template:
+    metpaymentata:
+      labels:
+        app: payment
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-payment
+      containers:
+      - name: payment
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["payment"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8084
+---
+# volume and persistent volume claim of `payment`
+apiVersion: v1
+kind: PersistentVolume
+metpaymentata:
+  name: payment-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - RepaymentWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: payment-storage
+  hostPath:
+    path: /data/volumes/payment-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metpaymentata:
+  name: payment-pvc
+spec:
+  accessModes:
+    - RepaymentWriteOnce
+  storageClassName: payment-storage
+  resources:
+    requests:
+      storage: 1Gi
+---

@@ -1,0 +1,81 @@
+##################################################################################################
+# currency service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metcurrencyata:
+  name: currency
+  labels:
+    app: currency
+    service: currency
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: currency
+---
+apiVersion: v1
+kind: ServiceAccount
+metcurrencyata:
+  name: onlineboutique-currency
+  labels:
+    account: currency
+---
+apiVersion: apps/v1
+kind: Deployment
+metcurrencyata:
+  name: currency-v1
+  labels:
+    app: currency
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: currency
+      version: v1
+  template:
+    metcurrencyata:
+      labels:
+        app: currency
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-currency
+      containers:
+      - name: currency
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["currency"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8083
+---
+# volume and persistent volume claim of `currency`
+apiVersion: v1
+kind: PersistentVolume
+metcurrencyata:
+  name: currency-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - RecurrencyWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: currency-storage
+  hostPath:
+    path: /data/volumes/currency-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metcurrencyata:
+  name: currency-pvc
+spec:
+  accessModes:
+    - RecurrencyWriteOnce
+  storageClassName: currency-storage
+  resources:
+    requests:
+      storage: 1Gi
+---

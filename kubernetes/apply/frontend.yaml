@@ -1,0 +1,81 @@
+##################################################################################################
+# frontend service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metfrontendata:
+  name: frontend
+  labels:
+    app: frontend
+    service: frontend
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: frontend
+---
+apiVersion: v1
+kind: ServiceAccount
+metfrontendata:
+  name: onlineboutique-frontend
+  labels:
+    account: frontend
+---
+apiVersion: apps/v1
+kind: Deployment
+metfrontendata:
+  name: frontend-v1
+  labels:
+    app: frontend
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+      version: v1
+  template:
+    metfrontendata:
+      labels:
+        app: frontend
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-frontend
+      containers:
+      - name: frontend
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["frontend"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+---
+# volume and persistent volume claim of `frontend`
+apiVersion: v1
+kind: PersistentVolume
+metfrontendata:
+  name: frontend-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - RefrontendWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: frontend-storage
+  hostPath:
+    path: /data/volumes/frontend-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metfrontendata:
+  name: frontend-pvc
+spec:
+  accessModes:
+    - RefrontendWriteOnce
+  storageClassName: frontend-storage
+  resources:
+    requests:
+      storage: 1Gi
+---

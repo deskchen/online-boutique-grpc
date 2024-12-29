@@ -1,0 +1,81 @@
+##################################################################################################
+# productcatalog service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metproductcatalogata:
+  name: productcatalog
+  labels:
+    app: productcatalog
+    service: productcatalog
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: productcatalog
+---
+apiVersion: v1
+kind: ServiceAccount
+metproductcatalogata:
+  name: onlineboutique-productcatalog
+  labels:
+    account: productcatalog
+---
+apiVersion: apps/v1
+kind: Deployment
+metproductcatalogata:
+  name: productcatalog-v1
+  labels:
+    app: productcatalog
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: productcatalog
+      version: v1
+  template:
+    metproductcatalogata:
+      labels:
+        app: productcatalog
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-productcatalog
+      containers:
+      - name: productcatalog
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["productcatalog"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8082
+---
+# volume and persistent volume claim of `productcatalog`
+apiVersion: v1
+kind: PersistentVolume
+metproductcatalogata:
+  name: productcatalog-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - ReproductcatalogWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: productcatalog-storage
+  hostPath:
+    path: /data/volumes/productcatalog-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metproductcatalogata:
+  name: productcatalog-pvc
+spec:
+  accessModes:
+    - ReproductcatalogWriteOnce
+  storageClassName: productcatalog-storage
+  resources:
+    requests:
+      storage: 1Gi
+---

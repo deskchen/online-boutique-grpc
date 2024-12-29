@@ -1,0 +1,81 @@
+##################################################################################################
+# shipping service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metshippingata:
+  name: shipping
+  labels:
+    app: shipping
+    service: shipping
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: shipping
+---
+apiVersion: v1
+kind: ServiceAccount
+metshippingata:
+  name: onlineboutique-shipping
+  labels:
+    account: shipping
+---
+apiVersion: apps/v1
+kind: Deployment
+metshippingata:
+  name: shipping-v1
+  labels:
+    app: shipping
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipping
+      version: v1
+  template:
+    metshippingata:
+      labels:
+        app: shipping
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-shipping
+      containers:
+      - name: shipping
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["shipping"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8088
+---
+# volume and persistent volume claim of `shipping`
+apiVersion: v1
+kind: PersistentVolume
+metshippingata:
+  name: shipping-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - ReshippingWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: shipping-storage
+  hostPath:
+    path: /data/volumes/shipping-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metshippingata:
+  name: shipping-pvc
+spec:
+  accessModes:
+    - ReshippingWriteOnce
+  storageClassName: shipping-storage
+  resources:
+    requests:
+      storage: 1Gi
+---

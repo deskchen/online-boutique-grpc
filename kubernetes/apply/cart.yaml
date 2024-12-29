@@ -1,0 +1,81 @@
+##################################################################################################
+# cart service and deployment
+##################################################################################################
+apiVersion: v1
+kind: Service
+metcartata:
+  name: cart
+  labels:
+    app: cart
+    service: cart
+spec:
+  ports:
+  - port: 8081
+    name: grpc
+  selector:
+    app: cart
+---
+apiVersion: v1
+kind: ServiceAccount
+metcartata:
+  name: onlineboutique-cart
+  labels:
+    account: cart
+---
+apiVersion: apps/v1
+kind: Deployment
+metcartata:
+  name: cart-v1
+  labels:
+    app: cart
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart
+      version: v1
+  template:
+    metcartata:
+      labels:
+        app: cart
+        version: v1
+    spec:
+      serviceAccountName: onlineboutique-cart
+      containers:
+      - name: cart
+        image: xzhu0027/onlineboutique-grpc:test
+        command: ["/app/onlineboutique"]
+        args: ["cart"]
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8081
+---
+# volume and persistent volume claim of `cart`
+apiVersion: v1
+kind: PersistentVolume
+metcartata:
+  name: cart-pv
+spec:
+  volumeMode: Filesystem
+  accessModes:
+    - RecartWriteOnce
+  capacity:
+    storage: 1Gi
+  storageClassName: cart-storage
+  hostPath:
+    path: /data/volumes/cart-pv   # Where all the hard drives are mounted
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metcartata:
+  name: cart-pvc
+spec:
+  accessModes:
+    - RecartWriteOnce
+  storageClassName: cart-storage
+  resources:
+    requests:
+      storage: 1Gi
+---
