@@ -4,6 +4,8 @@ import (
 	"flag"
 	"log"
 	"os"
+
+	services "github.com/appnetorg/OnlineBoutique/services"
 )
 
 type server interface {
@@ -23,17 +25,17 @@ func main() {
 		recommendationport = flag.Int("recommendationport", 8087, "recommendation service port")
 		adport             = flag.Int("adport", 8088, "ad service port")
 
-		cartaddr           = flag.String("cartaddr", "cart:8080", "cart service addr")
-		productcatalogaddr = flag.String("productcatalogaddr", "productcatalog:8081", "productcatalog service addr")
-		currencyaddr       = flag.String("currencyaddr", "currency:8082", "currency service addr")
-		paymentaddr        = flag.String("paymentaddr", "payment:8083", "payment service addr")
-		shippingaddr       = flag.String("shippingaddr", "shipping:8084", "shipping service addr")
-		emailaddr          = flag.String("emailaddr", "email:8085", "email service addr")
-		checkoutaddr       = flag.String("checkoutaddr", "checkout:8086", "checkout service addr")
-		recommendationaddr = flag.String("recommendationaddr", "recommendation:8087", "recommendation service addr")
-		adaddr             = flag.String("adaddr", "ad:8088", "ad service addr")
+		// cartaddr           = flag.String("cartaddr", "cart:8080", "cart service addr")
+		// productcatalogaddr = flag.String("productcatalogaddr", "productcatalog:8081", "productcatalog service addr")
+		// currencyaddr       = flag.String("currencyaddr", "currency:8082", "currency service addr")
+		// paymentaddr        = flag.String("paymentaddr", "payment:8083", "payment service addr")
+		// shippingaddr       = flag.String("shippingaddr", "shipping:8084", "shipping service addr")
+		// emailaddr          = flag.String("emailaddr", "email:8085", "email service addr")
+		// checkoutaddr       = flag.String("checkoutaddr", "checkout:8086", "checkout service addr")
+		// recommendationaddr = flag.String("recommendationaddr", "recommendation:8087", "recommendation service addr")
+		// adaddr             = flag.String("adaddr", "ad:8088", "ad service addr")
 
-		cart_redis_addr = flag.String("cart_redis_addr", "redis:6379", "cart redis addr")
+		// cart_redis_addr = flag.String("cart_redis_addr", "redis:6379", "cart redis addr")
 	)
 	flag.Parse()
 
@@ -41,39 +43,25 @@ func main() {
 	var cmd = os.Args[1]
 	println("cmd parsed: ", cmd)
 
-	tracer, err := tracing.Init(cmd, *jaegeraddr)
-	if err != nil {
-		log.Fatalf("Got error while initializing jaeger agent for cmd %s: %v", cmd, err)
-	}
-	log.Printf("tracer inited for cmd %s", cmd)
-
 	switch cmd {
-	case "details":
-		srv = services.NewDetails(
-			*detailsport,
-			tracer,
-			*details_mongodb_addr,
-		)
-	case "ratings":
-		srv = services.NewRatings(
-			*ratingsport,
-			tracer,
-			*ratings_mongodb_addr,
-		)
-	case "reviews":
-		srv = services.NewReviews(
-			*reviewsport,
-			*ratingsaddr,
-			tracer,
-			*reviews_mongodb_addr,
-		)
-	case "productpage":
-		srv = services.NewProductPage(
-			*productpageport,
-			*reviewsaddr,
-			*detailsaddr,
-			tracer,
-		)
+	case "cart":
+		srv = services.NewCartService(*cartport)
+	case "productcatalog":
+		srv = services.NewProductCatalogService(*productcatalogport)
+	case "currency":
+		srv = services.NewCurrencyService(*currencyport)
+	case "payment":
+		srv = services.NewPaymentService(*paymentport)
+	case "shipping":
+		srv = services.NewShippingService(*shippingport)
+	case "email":
+		srv = services.NewEmailService(*emailport)
+	case "checkout":
+		srv = services.NewCheckoutService(*checkoutport)
+	case "recommendation":
+		srv = services.NewRecommendationService(*recommendationport)
+	case "ad":
+		srv = services.NewAdService(*adport)
 	default:
 		log.Fatalf("unknown cmd: %s", cmd)
 	}

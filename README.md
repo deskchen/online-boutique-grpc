@@ -14,3 +14,17 @@ languages that talk to each other over gRPC.
 microservices](./architecture-diagram.png)](./architecture-diagram.png)
 
 Find **Protocol Buffers Descriptions** at the [`./protos` directory](/protos).
+
+
+## Build Docker Images and Push them to DockerHub
+
+```bash
+sudo bash build_images.sh # you need to change the username and run docker login
+```
+
+## Run Bookinfo Applicaton
+
+```bash
+kubectl apply -Rf ./kubernetes/apply
+kubectl get pods
+```
