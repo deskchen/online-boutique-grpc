@@ -96,22 +96,22 @@ func NewFrontendServer(port int) *frontendServer {
 	svc := new(frontendServer)
 	svc.port = port
 
-	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
-	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
-	mustMapEnv(&svc.cartSvcAddr, "CART_SERVICE_ADDR")
-	mustMapEnv(&svc.recommendationSvcAddr, "RECOMMENDATION_SERVICE_ADDR")
-	mustMapEnv(&svc.checkoutSvcAddr, "CHECKOUT_SERVICE_ADDR")
-	mustMapEnv(&svc.shippingSvcAddr, "SHIPPING_SERVICE_ADDR")
-	mustMapEnv(&svc.adSvcAddr, "AD_SERVICE_ADDR")
-	mustMapEnv(&svc.shoppingAssistantSvcAddr, "SHOPPING_ASSISTANT_SERVICE_ADDR")
+	util.mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
+	util.mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
+	util.mustMapEnv(&svc.cartSvcAddr, "CART_SERVICE_ADDR")
+	util.mustMapEnv(&svc.recommendationSvcAddr, "RECOMMENDATION_SERVICE_ADDR")
+	util.mustMapEnv(&svc.checkoutSvcAddr, "CHECKOUT_SERVICE_ADDR")
+	util.mustMapEnv(&svc.shippingSvcAddr, "SHIPPING_SERVICE_ADDR")
+	util.mustMapEnv(&svc.adSvcAddr, "AD_SERVICE_ADDR")
+	util.mustMapEnv(&svc.shoppingAssistantSvcAddr, "SHOPPING_ASSISTANT_SERVICE_ADDR")
 
-	mustConnGRPC(ctx, &svc.currencySvcConn, svc.currencySvcAddr)
-	mustConnGRPC(ctx, &svc.productCatalogSvcConn, svc.productCatalogSvcAddr)
-	mustConnGRPC(ctx, &svc.cartSvcConn, svc.cartSvcAddr)
-	mustConnGRPC(ctx, &svc.recommendationSvcConn, svc.recommendationSvcAddr)
-	mustConnGRPC(ctx, &svc.shippingSvcConn, svc.shippingSvcAddr)
-	mustConnGRPC(ctx, &svc.checkoutSvcConn, svc.checkoutSvcAddr)
-	mustConnGRPC(ctx, &svc.adSvcConn, svc.adSvcAddr)
+	util.mustConnGRPC(ctx, &svc.currencySvcConn, svc.currencySvcAddr)
+	util.mustConnGRPC(ctx, &svc.productCatalogSvcConn, svc.productCatalogSvcAddr)
+	util.mustConnGRPC(ctx, &svc.cartSvcConn, svc.cartSvcAddr)
+	util.mustConnGRPC(ctx, &svc.recommendationSvcConn, svc.recommendationSvcAddr)
+	util.mustConnGRPC(ctx, &svc.shippingSvcConn, svc.shippingSvcAddr)
+	util.mustConnGRPC(ctx, &svc.checkoutSvcConn, svc.checkoutSvcAddr)
+	util.mustConnGRPC(ctx, &svc.adSvcConn, svc.adSvcAddr)
 
 	return svc
 }
@@ -267,26 +267,6 @@ func (fe *frontendServer) getAd(ctx context.Context, ctxKeys []string) ([]*pb.Ad
 		ContextKeys: ctxKeys,
 	})
 	return resp.GetAds(), errors.Wrap(err, "failed to get ads")
-}
-
-func mustMapEnv(target *string, envKey string) {
-	v := os.Getenv(envKey)
-	if v == "" {
-		panic(fmt.Sprintf("environment variable %q not set", envKey))
-	}
-	*target = v
-}
-
-func mustConnGRPC(ctx context.Context, conn **grpc.ClientConn, addr string) {
-	var err error
-	ctx, cancel := context.WithTimeout(ctx, time.Second*3)
-	defer cancel()
-	*conn, err = grpc.DialContext(ctx, addr,
-		grpc.WithInsecure(),
-	)
-	if err != nil {
-		panic(errors.Wrapf(err, "grpc: failed to connect %s", addr))
-	}
 }
 
 func currentCurrency(r *http.Request) string {

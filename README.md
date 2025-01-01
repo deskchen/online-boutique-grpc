@@ -3,7 +3,7 @@
 
 Online Boutique is a cloud-first microservices demo application. The application is a web-based e-commerce app where users can browse items, add them to the cart, and purchase them.
 
-Adapted from https://github.com/GoogleCloudPlatform/microservices-demo/tree/main
+Adapted from https://github.com/GoogleCloudPlatform/microservices-demo/tree/main (all of the sevices that weren't written in Go ahve been ported to Go.)
 
 ## Architecture
 
