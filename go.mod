@@ -5,6 +5,8 @@ go 1.22.1
 replace github.com/appnetorg/OnlineBoutique/services => ./services
 
 require (
+	github.com/pkg/errors v0.9.1
+	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/grpc v1.69.2
 	google.golang.org/protobuf v1.36.1
 )
