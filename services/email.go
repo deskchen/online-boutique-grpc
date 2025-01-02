@@ -1,14 +1,25 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"html/template"
 	"log"
 	"net"
 
 	"google.golang.org/grpc"
 
-	"github.com/appnetorg/OnlineBoutique/protos/email"
+	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+)
+
+// Embed the HTML template for the email
+var (
+	tmpl = template.Must(template.New("email").
+		Funcs(template.FuncMap{
+			"div": func(x, y int32) int32 { return x / y },
+		}).
+		Parse("./templates/email.html"))
 )
 
 // NewEmailService returns a new server for the EmailService
@@ -23,13 +34,13 @@ func NewEmailService(port int) *EmailService {
 type EmailService struct {
 	name string
 	port int
-	email.EmailServiceServer
+	pb.EmailServiceServer
 }
 
 // Run starts the server
 func (s *EmailService) Run() error {
 	srv := grpc.NewServer()
-	email.RegisterEmailServiceServer(srv, s)
+	pb.RegisterEmailServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
@@ -40,30 +51,22 @@ func (s *EmailService) Run() error {
 }
 
 // SendOrderConfirmation sends an order confirmation email
-func (s *EmailService) SendOrderConfirmation(ctx context.Context, req *email.SendOrderConfirmationRequest) (*email.Empty, error) {
+func (s *EmailService) SendOrderConfirmation(ctx context.Context, req *pb.SendOrderConfirmationRequest) (*pb.Empty, error) {
 	log.Printf("SendOrderConfirmation request received for email = %v", req.GetEmail())
 
-	order := req.GetOrder()
-	log.Printf("Order ID: %v", order.GetOrderId())
-	log.Printf("Shipping Tracking ID: %v", order.GetShippingTrackingId())
-	log.Printf("Shipping Cost: %v %v", order.GetShippingCost().GetCurrencyCode(), order.GetShippingCost().GetUnits())
-	log.Printf("Shipping Address: %v, %v, %v, %v, %v",
-		order.GetShippingAddress().GetStreetAddress(),
-		order.GetShippingAddress().GetCity(),
-		order.GetShippingAddress().GetState(),
-		order.GetShippingAddress().GetCountry(),
-		order.GetShippingAddress().GetZipCode())
-
-	for _, item := range order.GetItems() {
-		log.Printf("Item: Product ID = %v, Quantity = %v, Cost = %v %v",
-			item.GetItem().GetProductId(),
-			item.GetItem().GetQuantity(),
-			item.GetCost().GetCurrencyCode(),
-			item.GetCost().GetUnits())
+	// Generate email content using the template
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, req.GetOrder()); err != nil {
+		log.Printf("Error executing template: %v", err)
+		return nil, err
 	}
+	confirmation := buf.String()
 
-	// Simulate sending an email (replace with actual email logic)
+	// Simulate sending the email
+	log.Printf("Order confirmation email content for %v:\n%s", req.GetEmail(), confirmation)
+
+	// Replace this with actual email-sending logic if needed
 	log.Printf("Order confirmation email sent to %v", req.GetEmail())
 
-	return &email.Empty{}, nil
+	return &pb.Empty{}, nil
 }
