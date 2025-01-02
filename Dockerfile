@@ -27,6 +27,7 @@ COPY --from=builder /app/onlineboutique .
 
 # Set environment variables
 ENV CART_SERVICE_ADDR="cart:8081" \
+    CART_REDIS_ADDR="cart-redis:6379" \
     PRODUCT_CATALOG_SERVICE_ADDR="productcatalog:8082" \
     CURRENCY_SERVICE_ADDR="currency:8083" \
     PAYMENT_SERVICE_ADDR="payment:8084" \

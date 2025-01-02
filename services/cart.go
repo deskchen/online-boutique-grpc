@@ -2,36 +2,44 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 
-	"github.com/appnetorg/OnlineBoutique/protos/cart"
+	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
 )
 
 // NewCartService returns a new server for the CartService
 func NewCartService(port int) *CartService {
 	return &CartService{
-		name:  "cart-service",
-		port:  port,
-		carts: make(map[string][]*cart.CartItem), // In-memory storage for simplicity
+		port: port,
 	}
 }
 
 // CartService implements the CartService
 type CartService struct {
-	name string
 	port int
-	cart.CartServiceServer
-	carts map[string][]*cart.CartItem // Mock in-memory storage for user carts
+	pb.CartServiceServer
+
+	cartRedisAddr string
+	rdb           *redis.Client // Redis client
 }
 
 // Run starts the server
 func (s *CartService) Run() error {
+
+	mustMapEnv(&s.cartRedisAddr, "CART_REDIS_ADDR")
+
+	s.rdb = redis.NewClient(&redis.Options{
+		Addr: s.cartRedisAddr,
+	})
+
 	srv := grpc.NewServer()
-	cart.RegisterCartServiceServer(srv, s)
+	pb.RegisterCartServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
@@ -42,28 +50,85 @@ func (s *CartService) Run() error {
 }
 
 // AddItem adds an item to the user's cart
-func (s *CartService) AddItem(ctx context.Context, req *cart.AddItemRequest) (*cart.Empty, error) {
+func (s *CartService) AddItem(ctx context.Context, req *pb.AddItemRequest) (*pb.Empty, error) {
 	log.Printf("AddItem request for user_id = %v, product_id = %v, quantity = %v", req.GetUserId(), req.GetItem().GetProductId(), req.GetItem().GetQuantity())
 
-	s.carts[req.GetUserId()] = append(s.carts[req.GetUserId()], req.GetItem())
-	return &cart.Empty{}, nil
+	userID := req.GetUserId()
+	item := req.GetItem()
+
+	// Fetch the existing cart
+	data, err := s.rdb.Get(ctx, userID).Result()
+	var cart []*pb.CartItem
+	if err == redis.Nil {
+		cart = []*pb.CartItem{} // Empty cart
+	} else if err != nil {
+		log.Printf("Failed to fetch cart for user_id = %v: %v", userID, err)
+		return nil, err
+	} else {
+		err = json.Unmarshal([]byte(data), &cart)
+		if err != nil {
+			log.Printf("Failed to unmarshal cart for user_id = %v: %v", userID, err)
+			return nil, err
+		}
+	}
+
+	// Add item to the cart
+	cart = append(cart, item)
+
+	// Save the updated cart
+	cartData, err := json.Marshal(cart)
+	if err != nil {
+		log.Printf("Failed to marshal cart for user_id = %v: %v", userID, err)
+		return nil, err
+	}
+
+	err = s.rdb.Set(ctx, userID, cartData, 0).Err()
+	if err != nil {
+		log.Printf("Failed to save cart for user_id = %v: %v", userID, err)
+		return nil, err
+	}
+
+	return &pb.Empty{}, nil
 }
 
 // GetCart retrieves the cart for a user
-func (s *CartService) GetCart(ctx context.Context, req *cart.GetCartRequest) (*cart.Cart, error) {
+func (s *CartService) GetCart(ctx context.Context, req *pb.GetCartRequest) (*pb.Cart, error) {
 	log.Printf("GetCart request for user_id = %v", req.GetUserId())
 
-	items := s.carts[req.GetUserId()]
-	return &cart.Cart{
-		UserId: req.GetUserId(),
-		Items:  items,
+	userID := req.GetUserId()
+	data, err := s.rdb.Get(ctx, userID).Result()
+	if err == redis.Nil {
+		return &pb.Cart{
+			UserId: userID,
+			Items:  []*pb.CartItem{},
+		}, nil
+	} else if err != nil {
+		log.Printf("Failed to fetch cart for user_id = %v: %v", userID, err)
+		return nil, err
+	}
+
+	var cart []*pb.CartItem
+	err = json.Unmarshal([]byte(data), &cart)
+	if err != nil {
+		log.Printf("Failed to unmarshal cart for user_id = %v: %v", userID, err)
+		return nil, err
+	}
+
+	return &pb.Cart{
+		UserId: userID,
+		Items:  cart,
 	}, nil
 }
 
 // EmptyCart clears the cart for a user
-func (s *CartService) EmptyCart(ctx context.Context, req *cart.EmptyCartRequest) (*cart.Empty, error) {
+func (s *CartService) EmptyCart(ctx context.Context, req *pb.EmptyCartRequest) (*pb.Empty, error) {
 	log.Printf("EmptyCart request for user_id = %v", req.GetUserId())
 
-	delete(s.carts, req.GetUserId())
-	return &cart.Empty{}, nil
+	err := s.rdb.Del(ctx, req.GetUserId()).Err()
+	if err != nil {
+		log.Printf("Failed to delete cart for user_id = %v: %v", req.GetUserId(), err)
+		return nil, err
+	}
+
+	return &pb.Empty{}, nil
 }

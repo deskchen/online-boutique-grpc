@@ -9,28 +9,35 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/appnetorg/OnlineBoutique/protos/recommendation"
+	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
 )
 
 // NewRecommendationService returns a new server for the RecommendationService
 func NewRecommendationService(port int) *RecommendationService {
 	return &RecommendationService{
-		name: "recommendation-service",
 		port: port,
 	}
 }
 
 // RecommendationService implements the RecommendationService
 type RecommendationService struct {
-	name string
 	port int
-	recommendation.RecommendationServiceServer
+
+	pb.RecommendationServiceServer
+
+	productCatalogSvcAddr string
+	productCatalogSvcConn *grpc.ClientConn
 }
 
 // Run starts the server
 func (s *RecommendationService) Run() error {
+	ctx := context.Background()
+
+	mustMapEnv(&s.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
+	mustConnGRPC(ctx, &s.productCatalogSvcConn, s.productCatalogSvcAddr)
+
 	srv := grpc.NewServer()
-	recommendation.RegisterRecommendationServiceServer(srv, s)
+	pb.RegisterRecommendationServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
@@ -41,23 +48,40 @@ func (s *RecommendationService) Run() error {
 }
 
 // ListRecommendations provides a list of recommended product IDs based on user and product history
-func (s *RecommendationService) ListRecommendations(ctx context.Context, req *recommendation.ListRecommendationsRequest) (*recommendation.ListRecommendationsResponse, error) {
+func (s *RecommendationService) ListRecommendations(ctx context.Context, req *pb.ListRecommendationsRequest) (*pb.ListRecommendationsResponse, error) {
 	log.Printf("ListRecommendations request received for user_id = %v, product_ids = %v", req.GetUserId(), req.GetProductIds())
 
-	// Mock recommendation logic: shuffle input product IDs and return a subset
-	productIDs := req.GetProductIds()
-	rand.Shuffle(len(productIDs), func(i, j int) { productIDs[i], productIDs[j] = productIDs[j], productIDs[i] })
-
-	recommended := []string{}
-	if len(productIDs) > 0 {
-		maxRecommendations := 5
-		if len(productIDs) < maxRecommendations {
-			maxRecommendations = len(productIDs)
-		}
-		recommended = productIDs[:maxRecommendations]
+	// Fetch a list of products from the product catalog.
+	catalogProducts, err := pb.NewProductCatalogServiceClient(s.productCatalogSvcConn).ListProducts(ctx, &pb.Empty{})
+	if err != nil {
+		log.Printf("Error fetching catalog products: %v", err)
+		return nil, err
 	}
 
-	return &recommendation.ListRecommendationsResponse{
+	// Remove user-provided products from the catalog to avoid recommending them.
+	userProductIDs := req.GetProductIds()
+	userIDs := make(map[string]struct{}, len(userProductIDs))
+	for _, id := range userProductIDs {
+		userIDs[id] = struct{}{}
+	}
+
+	filtered := make([]string, 0, len(catalogProducts.Products))
+	for _, product := range catalogProducts.Products {
+		if _, ok := userIDs[product.Id]; !ok {
+			filtered = append(filtered, product.Id)
+		}
+	}
+
+	// Sample from filtered products and return them.
+	rand.Shuffle(len(filtered), func(i, j int) { filtered[i], filtered[j] = filtered[j], filtered[i] })
+
+	const maxResponses = 5
+	recommended := filtered
+	if len(filtered) > maxResponses {
+		recommended = filtered[:maxResponses]
+	}
+
+	return &pb.ListRecommendationsResponse{
 		ProductIds: recommended,
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
 	"net"
@@ -12,6 +13,10 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+)
+
+const (
+	filePath = "currency_conversion.json"
 )
 
 // CurrencyService implements the CurrencyService
@@ -23,16 +28,22 @@ type CurrencyService struct {
 }
 
 // NewCurrencyService returns a new server for the CurrencyService
-func NewCurrencyService(port int, currencyData []byte) (*CurrencyService, error) {
+func NewCurrencyService(port int) *CurrencyService {
+	// Read the file content into a []byte
+	currencyData, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		log.Fatalf("Failed to read file: %v", err)
+	}
+
 	conversionMap, err := createConversionMap(currencyData)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	return &CurrencyService{
 		name:          "currency-service",
 		port:          port,
 		conversionMap: conversionMap,
-	}, nil
+	}
 }
 
 // Run starts the server
