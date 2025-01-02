@@ -21,7 +21,6 @@ const (
 
 // CurrencyService implements the CurrencyService
 type CurrencyService struct {
-	name string
 	port int
 	pb.CurrencyServiceServer
 	conversionMap map[string]float64
@@ -40,7 +39,6 @@ func NewCurrencyService(port int) *CurrencyService {
 		return nil
 	}
 	return &CurrencyService{
-		name:          "currency-service",
 		port:          port,
 		conversionMap: conversionMap,
 	}

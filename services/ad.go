@@ -19,7 +19,6 @@ const (
 // NewAdService returns a new server for the AdService
 func NewAdService(port int) *AdService {
 	return &AdService{
-		name: "ad-service",
 		port: port,
 		ads:  createAdsMap(),
 	}
@@ -27,7 +26,6 @@ func NewAdService(port int) *AdService {
 
 // AdService implements the AdService
 type AdService struct {
-	name string
 	port int
 	ads  map[string]*pb.Ad
 	pb.AdServiceServer

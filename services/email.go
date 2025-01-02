@@ -25,14 +25,12 @@ var (
 // NewEmailService returns a new server for the EmailService
 func NewEmailService(port int) *EmailService {
 	return &EmailService{
-		name: "email-service",
 		port: port,
 	}
 }
 
 // EmailService implements the EmailService
 type EmailService struct {
-	name string
 	port int
 	pb.EmailServiceServer
 }
