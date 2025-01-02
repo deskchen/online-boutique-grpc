@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"net"
 
 	"google.golang.org/grpc"
 
-	"github.com/appnetorg/OnlineBoutique/protos/shipping"
+	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
 )
 
 // NewShippingService returns a new server for the ShippingService
@@ -24,13 +25,13 @@ func NewShippingService(port int) *ShippingService {
 type ShippingService struct {
 	name string
 	port int
-	shipping.ShippingServiceServer
+	pb.ShippingServiceServer
 }
 
 // Run starts the server
 func (s *ShippingService) Run() error {
 	srv := grpc.NewServer()
-	shipping.RegisterShippingServiceServer(srv, s)
+	pb.RegisterShippingServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
@@ -41,7 +42,7 @@ func (s *ShippingService) Run() error {
 }
 
 // GetQuote calculates a shipping quote for a given address and items
-func (s *ShippingService) GetQuote(ctx context.Context, req *shipping.GetQuoteRequest) (*shipping.GetQuoteResponse, error) {
+func (s *ShippingService) GetQuote(ctx context.Context, req *pb.GetQuoteRequest) (*pb.GetQuoteResponse, error) {
 	log.Printf("GetQuote request received for address: %v, %v, %v, %v, %v",
 		req.GetAddress().GetStreetAddress(),
 		req.GetAddress().GetCity(),
@@ -51,14 +52,14 @@ func (s *ShippingService) GetQuote(ctx context.Context, req *shipping.GetQuoteRe
 
 	log.Printf("Calculating quote for %d items", len(req.GetItems()))
 
-	// Mock quote calculation: $5 base + $2 per item
-	cost := int64(5 + 2*len(req.GetItems()))
+	// Generate a quote based on item count
+	quote := createQuoteFromCount(len(req.GetItems()))
 
-	response := &shipping.GetQuoteResponse{
-		CostUsd: &shipping.Money{
+	response := &pb.GetQuoteResponse{
+		CostUsd: &pb.Money{
 			CurrencyCode: "USD",
-			Units:        cost,
-			Nanos:        0,
+			Units:        int64(quote.Dollars),
+			Nanos:        int32(quote.Cents * 10000000),
 		},
 	}
 
@@ -66,7 +67,7 @@ func (s *ShippingService) GetQuote(ctx context.Context, req *shipping.GetQuoteRe
 }
 
 // ShipOrder processes a shipping order and returns a tracking ID
-func (s *ShippingService) ShipOrder(ctx context.Context, req *shipping.ShipOrderRequest) (*shipping.ShipOrderResponse, error) {
+func (s *ShippingService) ShipOrder(ctx context.Context, req *pb.ShipOrderRequest) (*pb.ShipOrderResponse, error) {
 	log.Printf("ShipOrder request received for address: %v, %v, %v, %v, %v",
 		req.GetAddress().GetStreetAddress(),
 		req.GetAddress().GetCity(),
@@ -76,14 +77,61 @@ func (s *ShippingService) ShipOrder(ctx context.Context, req *shipping.ShipOrder
 
 	log.Printf("Shipping %d items", len(req.GetItems()))
 
-	// Mock tracking ID generation
-	trackingID := fmt.Sprintf("TRACKING-%d", rand.Intn(1000000))
+	// Generate tracking ID
+	baseAddress := fmt.Sprintf("%s, %s, %s", req.GetAddress().GetStreetAddress(), req.GetAddress().GetCity(), req.GetAddress().GetState())
+	trackingID := createTrackingID(baseAddress)
 
-	response := &shipping.ShipOrderResponse{
+	response := &pb.ShipOrderResponse{
 		TrackingId: trackingID,
 	}
 
 	log.Printf("Order shipped with tracking ID: %v", trackingID)
 
 	return response, nil
+}
+
+// Quote represents a currency value.
+type quote struct {
+	Dollars uint32
+	Cents   uint32
+}
+
+// createQuoteFromCount generates a shipping quote based on item count.
+func createQuoteFromCount(count int) quote {
+	return createQuoteFromFloat(8.99) // Example static rate
+}
+
+// createQuoteFromFloat generates a quote from a float value.
+func createQuoteFromFloat(value float64) quote {
+	units, fraction := math.Modf(value)
+	return quote{
+		uint32(units),
+		uint32(math.Trunc(fraction * 100)),
+	}
+}
+
+// createTrackingID generates a tracking ID.
+func createTrackingID(salt string) string {
+	return fmt.Sprintf("%c%c-%d%s-%d%s",
+		getRandomLetterCode(),
+		getRandomLetterCode(),
+		len(salt),
+		getRandomNumber(3),
+		len(salt)/2,
+		getRandomNumber(7),
+	)
+}
+
+// getRandomLetterCode generates a code point value for a capital letter.
+func getRandomLetterCode() uint32 {
+	return 65 + uint32(rand.Intn(25))
+}
+
+// getRandomNumber generates a string representation of a number with the requested number of digits.
+func getRandomNumber(digits int) string {
+	str := ""
+	for i := 0; i < digits; i++ {
+		str = fmt.Sprintf("%s%d", str, rand.Intn(10))
+	}
+	return str
 }
