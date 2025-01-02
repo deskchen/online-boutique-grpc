@@ -4,9 +4,8 @@ go 1.22.1
 
 replace github.com/appnetorg/OnlineBoutique/services => ./services
 
-replace github.com/appnetorg/OnlineBoutique/util => ./util
-
 require (
+	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/grpc v1.69.2

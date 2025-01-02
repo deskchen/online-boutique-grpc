@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/appnetorg/OnlineBoutique/protos/ad"
+	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
 )
 
 const (
@@ -29,15 +29,15 @@ func NewAdService(port int) *AdService {
 type AdService struct {
 	name string
 	port int
-	ads  map[string]*ad.Ad
-	ad.AdServiceServer
+	ads  map[string]*pb.Ad
+	pb.AdServiceServer
 }
 
 // Run starts the server
 func (s *AdService) Run() error {
 	opts := []grpc.ServerOption{}
 	srv := grpc.NewServer(opts...)
-	ad.RegisterAdServiceServer(srv, s)
+	pb.RegisterAdServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
@@ -48,10 +48,10 @@ func (s *AdService) Run() error {
 }
 
 // GetAds returns a list of ads based on the context keys
-func (s *AdService) GetAds(ctx context.Context, req *ad.AdRequest) (*ad.AdResponse, error) {
+func (s *AdService) GetAds(ctx context.Context, req *pb.AdRequest) (*pb.AdResponse, error) {
 	log.Printf("GetAds request with context_keys = %v", req.GetContextKeys())
 
-	var allAds []*ad.Ad
+	var allAds []*pb.Ad
 	keywords := req.GetContextKeys()
 
 	if len(keywords) > 0 {
@@ -66,21 +66,21 @@ func (s *AdService) GetAds(ctx context.Context, req *ad.AdRequest) (*ad.AdRespon
 		allAds = s.getRandomAds()
 	}
 
-	return &ad.AdResponse{
+	return &pb.AdResponse{
 		Ads: allAds,
 	}, nil
 }
 
-func (s *AdService) getAdsByCategory(category string) []*ad.Ad {
+func (s *AdService) getAdsByCategory(category string) []*pb.Ad {
 	if adInstance, ok := s.ads[category]; ok {
-		return []*ad.Ad{adInstance}
+		return []*pb.Ad{adInstance}
 	}
 	return nil
 }
 
-func (s *AdService) getRandomAds() []*ad.Ad {
-	ads := make([]*ad.Ad, maxAdsToServe)
-	vals := make([]*ad.Ad, 0, len(s.ads))
+func (s *AdService) getRandomAds() []*pb.Ad {
+	ads := make([]*pb.Ad, maxAdsToServe)
+	vals := make([]*pb.Ad, 0, len(s.ads))
 	for _, ad := range s.ads {
 		vals = append(vals, ad)
 	}
@@ -90,8 +90,8 @@ func (s *AdService) getRandomAds() []*ad.Ad {
 	return ads
 }
 
-func createAdsMap() map[string]*ad.Ad {
-	return map[string]*ad.Ad{
+func createAdsMap() map[string]*pb.Ad {
+	return map[string]*pb.Ad{
 		"hair": {
 			RedirectUrl: "/product/2ZYFJ3GM2N",
 			Text:        "Hairdryer for sale. 50% off.",

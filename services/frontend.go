@@ -84,40 +84,25 @@ type frontendServer struct {
 	adSvcAddr string
 	adSvcConn *grpc.ClientConn
 
-	collectorAddr string
-	collectorConn *grpc.ClientConn
-
 	shoppingAssistantSvcAddr string
 }
 
 func NewFrontendServer(port int) *frontendServer {
-	ctx := context.Background()
-
-	svc := new(frontendServer)
-	svc.port = port
-
-	util.mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
-	util.mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
-	util.mustMapEnv(&svc.cartSvcAddr, "CART_SERVICE_ADDR")
-	util.mustMapEnv(&svc.recommendationSvcAddr, "RECOMMENDATION_SERVICE_ADDR")
-	util.mustMapEnv(&svc.checkoutSvcAddr, "CHECKOUT_SERVICE_ADDR")
-	util.mustMapEnv(&svc.shippingSvcAddr, "SHIPPING_SERVICE_ADDR")
-	util.mustMapEnv(&svc.adSvcAddr, "AD_SERVICE_ADDR")
-	util.mustMapEnv(&svc.shoppingAssistantSvcAddr, "SHOPPING_ASSISTANT_SERVICE_ADDR")
-
-	util.mustConnGRPC(ctx, &svc.currencySvcConn, svc.currencySvcAddr)
-	util.mustConnGRPC(ctx, &svc.productCatalogSvcConn, svc.productCatalogSvcAddr)
-	util.mustConnGRPC(ctx, &svc.cartSvcConn, svc.cartSvcAddr)
-	util.mustConnGRPC(ctx, &svc.recommendationSvcConn, svc.recommendationSvcAddr)
-	util.mustConnGRPC(ctx, &svc.shippingSvcConn, svc.shippingSvcAddr)
-	util.mustConnGRPC(ctx, &svc.checkoutSvcConn, svc.checkoutSvcAddr)
-	util.mustConnGRPC(ctx, &svc.adSvcConn, svc.adSvcAddr)
-
-	return svc
+	return &frontendServer{
+		port: port,
+	}
 }
 
 // Run the server
 func (fe *frontendServer) Run() error {
+	ctx := context.Background()
+	mustConnGRPC(ctx, &fe.currencySvcConn, fe.currencySvcAddr)
+	mustConnGRPC(ctx, &fe.productCatalogSvcConn, fe.productCatalogSvcAddr)
+	mustConnGRPC(ctx, &fe.cartSvcConn, fe.cartSvcAddr)
+	mustConnGRPC(ctx, &fe.recommendationSvcConn, fe.recommendationSvcAddr)
+	mustConnGRPC(ctx, &fe.shippingSvcConn, fe.shippingSvcAddr)
+	mustConnGRPC(ctx, &fe.checkoutSvcConn, fe.checkoutSvcAddr)
+	mustConnGRPC(ctx, &fe.adSvcConn, fe.adSvcAddr)
 
 	http.HandleFunc("/", fe.homeHandler)
 
