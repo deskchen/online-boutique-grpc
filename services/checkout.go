@@ -115,16 +115,16 @@ func (cs *CheckoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 
 	prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserId, req.UserCurrency, req.Address)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	total := pb.Money{CurrencyCode: req.UserCurrency,
 		Units: 0,
 		Nanos: 0}
-	total = Must(Sum(total, *prep.shippingCostLocalized))
+	total = Must(Sum(&total, prep.shippingCostLocalized))
 	for _, it := range prep.orderItems {
-		multPrice := MultiplySlow(*it.Cost, uint32(it.GetItem().GetQuantity()))
-		total = Must(Sum(total, multPrice))
+		multPrice := MultiplySlow(it.Cost, uint32(it.GetItem().GetQuantity()))
+		total = Must(Sum(&total, &multPrice))
 	}
 
 	txID, err := cs.chargeCard(ctx, &total, req.CreditCard)
@@ -177,7 +177,7 @@ func (cs *CheckoutService) prepareOrderItemsAndShippingQuoteFromCart(ctx context
 	if err != nil {
 		return out, fmt.Errorf("shipping quote failure: %+v", err)
 	}
-	shippingPrice, err := cs.convertCurrency(ctx, shippingUSD, userCurrency)
+	shippingPrice, err := cs.convertCurrency(shippingUSD, userCurrency)
 	if err != nil {
 		return out, fmt.Errorf("failed to convert shipping cost to currency: %+v", err)
 	}
@@ -223,7 +223,7 @@ func (cs *CheckoutService) prepOrderItems(ctx context.Context, items []*pb.CartI
 		if err != nil {
 			return nil, fmt.Errorf("failed to get product #%q", item.GetProductId())
 		}
-		price, err := cs.convertCurrency(ctx, product.GetPriceUsd(), userCurrency)
+		price, err := cs.convertCurrency(product.GetPriceUsd(), userCurrency)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert price of %q to %s", item.GetProductId(), userCurrency)
 		}
@@ -234,7 +234,7 @@ func (cs *CheckoutService) prepOrderItems(ctx context.Context, items []*pb.CartI
 	return out, nil
 }
 
-func (cs *CheckoutService) convertCurrency(ctx context.Context, from *pb.Money, toCurrency string) (*pb.Money, error) {
+func (cs *CheckoutService) convertCurrency(from *pb.Money, toCurrency string) (*pb.Money, error) {
 	result, err := pb.NewCurrencyServiceClient(cs.currencySvcConn).Convert(context.TODO(), &pb.CurrencyConversionRequest{
 		From:   from,
 		ToCode: toCurrency})
@@ -272,28 +272,28 @@ func (cs *CheckoutService) shipOrder(ctx context.Context, address *pb.Address, i
 }
 
 // IsValid checks if specified value has a valid units/nanos signs and ranges.
-func IsValid(m pb.Money) bool {
+func IsValid(m *pb.Money) bool {
 	return signMatches(m) && validNanos(m.GetNanos())
 }
 
-func signMatches(m pb.Money) bool {
+func signMatches(m *pb.Money) bool {
 	return m.GetNanos() == 0 || m.GetUnits() == 0 || (m.GetNanos() < 0) == (m.GetUnits() < 0)
 }
 
 func validNanos(nanos int32) bool { return nanosMin <= nanos && nanos <= nanosMax }
 
 // IsZero returns true if the specified money value is equal to zero.
-func IsZero(m pb.Money) bool { return m.GetUnits() == 0 && m.GetNanos() == 0 }
+func IsZero(m *pb.Money) bool { return m.GetUnits() == 0 && m.GetNanos() == 0 }
 
 // IsPositive returns true if the specified money value is valid and is
 // positive.
-func IsPositive(m pb.Money) bool {
+func IsPositive(m *pb.Money) bool {
 	return IsValid(m) && m.GetUnits() > 0 || (m.GetUnits() == 0 && m.GetNanos() > 0)
 }
 
 // IsNegative returns true if the specified money value is valid and is
 // negative.
-func IsNegative(m pb.Money) bool {
+func IsNegative(m *pb.Money) bool {
 	return IsValid(m) && m.GetUnits() < 0 || (m.GetUnits() == 0 && m.GetNanos() < 0)
 }
 
@@ -330,7 +330,7 @@ func Must(v pb.Money, err error) pb.Money {
 // Sum adds two values. Returns an error if one of the values are invalid or
 // currency codes are not matching (unless currency code is unspecified for
 // both).
-func Sum(l, r pb.Money) (pb.Money, error) {
+func Sum(l, r *pb.Money) (pb.Money, error) {
 	if !IsValid(l) || !IsValid(r) {
 		return pb.Money{}, ErrInvalidValue
 	} else if l.GetCurrencyCode() != r.GetCurrencyCode() {
@@ -362,10 +362,10 @@ func Sum(l, r pb.Money) (pb.Money, error) {
 
 // MultiplySlow is a slow multiplication operation done through adding the value
 // to itself n-1 times.
-func MultiplySlow(m pb.Money, n uint32) pb.Money {
-	out := m
+func MultiplySlow(m *pb.Money, n uint32) pb.Money {
+	out := *m
 	for n > 1 {
-		out = Must(Sum(out, m))
+		out = Must(Sum(&out, m))
 		n--
 	}
 	return out
