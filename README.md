@@ -29,5 +29,5 @@ kubectl apply -Rf ./kubernetes/apply
 kubectl get pods
 
 # Destroy
-kubectl delete pv,pvc,all --all
+kubectl delete pv,pvc,sa,all --all
 ```

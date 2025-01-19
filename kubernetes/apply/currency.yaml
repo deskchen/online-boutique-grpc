@@ -25,26 +25,23 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: currency-v1
+  name: currency
   labels:
     app: currency
-    version: v1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: currency
-      version: v1
   template:
     metadata:
       labels:
         app: currency
-        version: v1
     spec:
       serviceAccountName: onlineboutique-currency
       containers:
       - name: currency
-        image: xzhu0027/onlineboutique-grpc:test
+        image: appnetorg/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["currency"]
         imagePullPolicy: Always

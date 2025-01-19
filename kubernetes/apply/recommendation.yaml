@@ -25,26 +25,23 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: recommendation-v1
+  name: recommendation
   labels:
     app: recommendation
-    version: v1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: recommendation
-      version: v1
   template:
     metadata:
       labels:
         app: recommendation
-        version: v1
     spec:
       serviceAccountName: onlineboutique-recommendation
       containers:
       - name: recommendation
-        image: xzhu0027/onlineboutique-grpc:test
+        image: appnetorg/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["recommendation"]
         imagePullPolicy: Always

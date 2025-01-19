@@ -25,26 +25,23 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend-v1
+  name: frontend
   labels:
     app: frontend
-    version: v1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: frontend
-      version: v1
   template:
     metadata:
       labels:
         app: frontend
-        version: v1
     spec:
       serviceAccountName: onlineboutique-frontend
       containers:
       - name: frontend
-        image: xzhu0027/onlineboutique-grpc:test
+        image: appnetorg/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["frontend"]
         imagePullPolicy: Always

@@ -1,38 +1,30 @@
 package services
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	"github.com/golang/protobuf/jsonpb"
 )
-
-// Product represents a product in the catalog
-type Product struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Picture     string   `json:"picture"`
-	PriceUSD    string   `json:"priceUsd"` // Adjust type to match your proto if needed
-	Categories  []string `json:"categories"`
-}
 
 // ProductCatalogService implements the ProductCatalogService
 type ProductCatalogService struct {
-	port     int
-	products []Product // Catalog storage
+	port    int
+	catalog pb.ListProductsResponse
 
 	pb.ProductCatalogServiceServer
 
@@ -44,8 +36,7 @@ type ProductCatalogService struct {
 // NewProductCatalogService creates a new ProductCatalogService
 func NewProductCatalogService(port int) *ProductCatalogService {
 	svc := &ProductCatalogService{
-		port:     port,
-		products: []Product{},
+		port: port,
 	}
 
 	// Initialize extra latency from environment variable
@@ -76,7 +67,7 @@ func NewProductCatalogService(port int) *ProductCatalogService {
 	}()
 
 	// Load initial catalog
-	if err := svc.loadCatalog(); err != nil {
+	if err := svc.loadCatalog(&svc.catalog); err != nil {
 		log.Fatalf("Failed to load catalog: %v", err)
 	}
 
@@ -84,33 +75,32 @@ func NewProductCatalogService(port int) *ProductCatalogService {
 }
 
 // loadCatalog loads the product catalog from a file
-func (s *ProductCatalogService) loadCatalog() error {
-	catalogData, err := os.ReadFile("data/products.json")
-	if err != nil {
-		return err
-	}
-
-	var products []Product
-	if err := json.Unmarshal(catalogData, &products); err != nil {
-		return err
-	}
+func (s *ProductCatalogService) loadCatalog(catalog *pb.ListProductsResponse) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.products = products
+
+	catalogJSON, err := os.ReadFile("data/products.json")
+	if err != nil {
+		return err
+	}
+	if err := jsonpb.Unmarshal(bytes.NewReader(catalogJSON), catalog); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // parseCatalog parses the current catalog state
-func (s *ProductCatalogService) parseCatalog() []Product {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if s.reloadCatalog {
-		if err := s.loadCatalog(); err != nil {
-			log.Printf("Failed to reload catalog: %v", err)
+func (s *ProductCatalogService) parseCatalog() []*pb.Product {
+	if s.reloadCatalog || len(s.catalog.Products) == 0 {
+		err := s.loadCatalog(&s.catalog)
+		if err != nil {
+			return []*pb.Product{}
 		}
 	}
-	return s.products
+
+	return s.catalog.Products
 }
 
 // Run starts the gRPC server
@@ -130,20 +120,8 @@ func (s *ProductCatalogService) Run() error {
 func (s *ProductCatalogService) ListProducts(ctx context.Context, req *pb.Empty) (*pb.ListProductsResponse, error) {
 	time.Sleep(s.extraLatency)
 
-	var productList []*pb.Product
-	for _, p := range s.parseCatalog() {
-		productList = append(productList, &pb.Product{
-			Id:          p.ID,
-			Name:        p.Name,
-			Description: p.Description,
-			Picture:     p.Picture,
-			PriceUsd:    &pb.Money{CurrencyCode: "USD", Units: parsePrice(p.PriceUSD)},
-			Categories:  p.Categories,
-		})
-	}
-
 	return &pb.ListProductsResponse{
-		Products: productList,
+		Products: s.parseCatalog(),
 	}, nil
 }
 
@@ -151,52 +129,31 @@ func (s *ProductCatalogService) ListProducts(ctx context.Context, req *pb.Empty)
 func (s *ProductCatalogService) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.Product, error) {
 	time.Sleep(s.extraLatency)
 
-	for _, p := range s.parseCatalog() {
-		if p.ID == req.GetId() {
-			return &pb.Product{
-				Id:          p.ID,
-				Name:        p.Name,
-				Description: p.Description,
-				Picture:     p.Picture,
-				PriceUsd:    &pb.Money{CurrencyCode: "USD", Units: parsePrice(p.PriceUSD)},
-				Categories:  p.Categories,
-			}, nil
+	var found *pb.Product
+	for i := 0; i < len(s.parseCatalog()); i++ {
+		if req.Id == s.parseCatalog()[i].Id {
+			found = s.parseCatalog()[i]
 		}
 	}
 
-	return nil, fmt.Errorf("product with id %v not found", req.GetId())
+	if found == nil {
+		return nil, status.Errorf(codes.NotFound, "no product with ID %s", req.Id)
+	}
+
+	return found, nil
 }
 
 // SearchProducts searches for products matching a query
 func (s *ProductCatalogService) SearchProducts(ctx context.Context, req *pb.SearchProductsRequest) (*pb.SearchProductsResponse, error) {
 	time.Sleep(s.extraLatency)
 
-	var results []*pb.Product
-	for _, p := range s.parseCatalog() {
-		if strings.Contains(strings.ToLower(p.Name), strings.ToLower(req.GetQuery())) ||
-			strings.Contains(strings.ToLower(p.Description), strings.ToLower(req.GetQuery())) {
-			results = append(results, &pb.Product{
-				Id:          p.ID,
-				Name:        p.Name,
-				Description: p.Description,
-				Picture:     p.Picture,
-				PriceUsd:    &pb.Money{CurrencyCode: "USD", Units: parsePrice(p.PriceUSD)},
-				Categories:  p.Categories,
-			})
+	var ps []*pb.Product
+	for _, product := range s.parseCatalog() {
+		if strings.Contains(strings.ToLower(product.Name), strings.ToLower(req.Query)) ||
+			strings.Contains(strings.ToLower(product.Description), strings.ToLower(req.Query)) {
+			ps = append(ps, product)
 		}
 	}
 
-	return &pb.SearchProductsResponse{
-		Results: results,
-	}, nil
-}
-
-// parsePrice converts a price string to an int64
-func parsePrice(price string) int64 {
-	parsedPrice, err := strconv.ParseFloat(price, 64)
-	if err != nil {
-		log.Printf("Failed to parse price: %v", err)
-		return 0
-	}
-	return int64(parsedPrice)
+	return &pb.SearchProductsResponse{Results: ps}, nil
 }

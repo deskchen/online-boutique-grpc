@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.18-alpine as builder
+FROM golang:1.22 AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -18,12 +18,19 @@ RUN go build -ldflags="-s -w" -o /app/onlineboutique ./cmd/...
 
 # Final stage
 FROM alpine:latest
+# FROM ubuntu:20.04
+RUN apk add gcompat
 
 # Set the working directory inside the container
 WORKDIR /app
 
 # Copy the built binary from the builder stage
 COPY --from=builder /app/onlineboutique .
+COPY services/templates /app/templates
+COPY services/static /app/static
+COPY services/data /app/data
+
+RUN chmod +x /app/onlineboutique
 
 # Set environment variables
 ENV CART_SERVICE_ADDR="cart:8081" \
@@ -37,6 +44,3 @@ ENV CART_SERVICE_ADDR="cart:8081" \
     RECOMMENDATION_SERVICE_ADDR="recommendation:8088" \
     AD_SERVICE_ADDR="ad:8089" \
     SHOPPING_ASSISTANT_SERVICE_ADDR="shoppingassistant:80"
-
-# Specify the command to run the application
-CMD ["./onlineboutique"]

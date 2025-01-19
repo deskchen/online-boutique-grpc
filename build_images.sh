@@ -6,7 +6,7 @@ set -ex
 
 EXEC=docker
 
-USER="DOCKER_USERNAME"
+USER="appnetorg"
 
 TAG="latest"
 

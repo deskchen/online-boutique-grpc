@@ -25,26 +25,23 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: productcatalog-v1
+  name: productcatalog
   labels:
     app: productcatalog
-    version: v1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: productcatalog
-      version: v1
   template:
     metadata:
       labels:
         app: productcatalog
-        version: v1
     spec:
       serviceAccountName: onlineboutique-productcatalog
       containers:
       - name: productcatalog
-        image: xzhu0027/onlineboutique-grpc:test
+        image: appnetorg/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["productcatalog"]
         imagePullPolicy: Always

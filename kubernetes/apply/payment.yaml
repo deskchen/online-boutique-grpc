@@ -25,26 +25,23 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: payment-v1
+  name: payment
   labels:
     app: payment
-    version: v1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: payment
-      version: v1
   template:
     metadata:
       labels:
         app: payment
-        version: v1
     spec:
       serviceAccountName: onlineboutique-payment
       containers:
       - name: payment
-        image: xzhu0027/onlineboutique-grpc:test
+        image: appnetorg/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["payment"]
         imagePullPolicy: Always

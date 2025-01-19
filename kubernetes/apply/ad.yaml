@@ -25,26 +25,23 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ad-v1
+  name: ad
   labels:
     app: ad
-    version: v1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: ad
-      version: v1
   template:
     metadata:
       labels:
         app: ad
-        version: v1
     spec:
       serviceAccountName: onlineboutique-ad
       containers:
       - name: ad
-        image: xzhu0027/onlineboutique-grpc:test
+        image: appnetorg/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["ad"]
         imagePullPolicy: Always

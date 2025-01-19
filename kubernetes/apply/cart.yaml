@@ -25,26 +25,23 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cart-v1
+  name: cart
   labels:
     app: cart
-    version: v1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: cart
-      version: v1
   template:
     metadata:
       labels:
         app: cart
-        version: v1
     spec:
       serviceAccountName: onlineboutique-cart
       containers:
       - name: cart
-        image: xzhu0027/onlineboutique-grpc:test
+        image: appnetorg/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["cart"]
         imagePullPolicy: Always
@@ -82,20 +79,20 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cart-sredis
-  namespace: cart-sredis
+  name: cart-redis
+  namespace: default
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cart-sredis
+      app: cart-redis
   template:
     metadata:
       labels:
-        app: cart-sredis
+        app: cart-redis
     spec:
       containers:
-      - name: cart-sredis
+      - name: cart-redis
         image: redis:6.2
         ports:
         - containerPort: 6379
@@ -103,11 +100,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cart-sredis
-  namespace: cart-sredis
+  name: cart-redis
+  namespace: default
 spec:
   selector:
-    app: cart-sredis
+    app: cart-redis
   ports:
   - protocol: TCP
     port: 6379

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	filePath = "currency_conversion.json"
+	filePath = "data/currency_conversion.json"
 )
 
 // CurrencyService implements the CurrencyService
