@@ -27,4 +27,7 @@ sudo bash build_images.sh # you need to change the username and run docker login
 ```bash
 kubectl apply -Rf ./kubernetes/apply
 kubectl get pods
+
+# Destroy
+kubectl delete pv,pvc,all --all
 ```

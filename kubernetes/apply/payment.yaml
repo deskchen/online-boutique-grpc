@@ -3,7 +3,7 @@
 ##################################################################################################
 apiVersion: v1
 kind: Service
-metpaymentata:
+metadata:
   name: payment
   labels:
     app: payment
@@ -17,14 +17,14 @@ spec:
 ---
 apiVersion: v1
 kind: ServiceAccount
-metpaymentata:
+metadata:
   name: onlineboutique-payment
   labels:
     account: payment
 ---
 apiVersion: apps/v1
 kind: Deployment
-metpaymentata:
+metadata:
   name: payment-v1
   labels:
     app: payment
@@ -36,7 +36,7 @@ spec:
       app: payment
       version: v1
   template:
-    metpaymentata:
+    metadata:
       labels:
         app: payment
         version: v1
@@ -54,7 +54,7 @@ spec:
 # volume and persistent volume claim of `payment`
 apiVersion: v1
 kind: PersistentVolume
-metpaymentata:
+metadata:
   name: payment-pv
 spec:
   volumeMode: Filesystem
@@ -69,7 +69,7 @@ spec:
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
-metpaymentata:
+metadata:
   name: payment-pvc
 spec:
   accessModes:

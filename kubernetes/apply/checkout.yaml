@@ -3,7 +3,7 @@
 ##################################################################################################
 apiVersion: v1
 kind: Service
-metcheckoutata:
+metadata:
   name: checkout
   labels:
     app: checkout
@@ -17,14 +17,14 @@ spec:
 ---
 apiVersion: v1
 kind: ServiceAccount
-metcheckoutata:
+metadata:
   name: onlineboutique-checkout
   labels:
     account: checkout
 ---
 apiVersion: apps/v1
 kind: Deployment
-metcheckoutata:
+metadata:
   name: checkout-v1
   labels:
     app: checkout
@@ -36,7 +36,7 @@ spec:
       app: checkout
       version: v1
   template:
-    metcheckoutata:
+    metadata:
       labels:
         app: checkout
         version: v1
@@ -54,7 +54,7 @@ spec:
 # volume and persistent volume claim of `checkout`
 apiVersion: v1
 kind: PersistentVolume
-metcheckoutata:
+metadata:
   name: checkout-pv
 spec:
   volumeMode: Filesystem
@@ -69,7 +69,7 @@ spec:
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
-metcheckoutata:
+metadata:
   name: checkout-pvc
 spec:
   accessModes:

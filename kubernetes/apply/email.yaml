@@ -3,7 +3,7 @@
 ##################################################################################################
 apiVersion: v1
 kind: Service
-metemailata:
+metadata:
   name: email
   labels:
     app: email
@@ -17,14 +17,14 @@ spec:
 ---
 apiVersion: v1
 kind: ServiceAccount
-metemailata:
+metadata:
   name: onlineboutique-email
   labels:
     account: email
 ---
 apiVersion: apps/v1
 kind: Deployment
-metemailata:
+metadata:
   name: email-v1
   labels:
     app: email
@@ -36,7 +36,7 @@ spec:
       app: email
       version: v1
   template:
-    metemailata:
+    metadata:
       labels:
         app: email
         version: v1
@@ -54,7 +54,7 @@ spec:
 # volume and persistent volume claim of `email`
 apiVersion: v1
 kind: PersistentVolume
-metemailata:
+metadata:
   name: email-pv
 spec:
   volumeMode: Filesystem
@@ -69,7 +69,7 @@ spec:
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
-metemailata:
+metadata:
   name: email-pvc
 spec:
   accessModes:
