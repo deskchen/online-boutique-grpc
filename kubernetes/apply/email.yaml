@@ -10,7 +10,8 @@ metadata:
     service: email
 spec:
   ports:
-  - port: 8081
+  - port: 8086
+    targetPort: 8086
     name: grpc
   selector:
     app: email

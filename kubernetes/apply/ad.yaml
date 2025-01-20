@@ -10,7 +10,8 @@ metadata:
     service: ad
 spec:
   ports:
-  - port: 8081
+  - port: 8089
+    targetPort: 8089
     name: grpc
   selector:
     app: ad

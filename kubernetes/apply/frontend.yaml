@@ -7,11 +7,12 @@ metadata:
   name: frontend
   labels:
     app: frontend
-    service: frontend
 spec:
+  clusterIP: 10.96.88.88
   ports:
-  - port: 8081
-    name: grpc
+  - name: frontend
+    port: 80
+    targetPort: 8080
   selector:
     app: frontend
 ---

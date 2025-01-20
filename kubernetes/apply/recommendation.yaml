@@ -10,7 +10,8 @@ metadata:
     service: recommendation
 spec:
   ports:
-  - port: 8081
+  - port: 8088
+    targetPort: 8088
     name: grpc
   selector:
     app: recommendation

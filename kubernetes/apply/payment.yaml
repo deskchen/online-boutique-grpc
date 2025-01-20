@@ -10,7 +10,8 @@ metadata:
     service: payment
 spec:
   ports:
-  - port: 8081
+  - port: 8084
+    targetPort: 8084
     name: grpc
   selector:
     app: payment
