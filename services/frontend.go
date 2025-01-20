@@ -95,6 +95,15 @@ func NewFrontendServer(port int) *frontendServer {
 
 // Run the server
 func (fe *frontendServer) Run() error {
+	mustMapEnv(&fe.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
+	mustMapEnv(&fe.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
+	mustMapEnv(&fe.cartSvcAddr, "CART_SERVICE_ADDR")
+	mustMapEnv(&fe.recommendationSvcAddr, "RECOMMENDATION_SERVICE_ADDR")
+	mustMapEnv(&fe.checkoutSvcAddr, "CHECKOUT_SERVICE_ADDR")
+	mustMapEnv(&fe.shippingSvcAddr, "SHIPPING_SERVICE_ADDR")
+	mustMapEnv(&fe.adSvcAddr, "AD_SERVICE_ADDR")
+	mustMapEnv(&fe.shoppingAssistantSvcAddr, "SHOPPING_ASSISTANT_SERVICE_ADDR")
+
 	ctx := context.Background()
 	mustConnGRPC(ctx, &fe.currencySvcConn, fe.currencySvcAddr)
 	mustConnGRPC(ctx, &fe.productCatalogSvcConn, fe.productCatalogSvcAddr)

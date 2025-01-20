@@ -1,7 +1,6 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -16,9 +15,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
-	"github.com/golang/protobuf/jsonpb"
 )
 
 // ProductCatalogService implements the ProductCatalogService
@@ -74,17 +73,19 @@ func NewProductCatalogService(port int) *ProductCatalogService {
 	return svc
 }
 
-// loadCatalog loads the product catalog from a file
+// loadCatalog loads the product catalog from a file.
 func (s *ProductCatalogService) loadCatalog(catalog *pb.ListProductsResponse) error {
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Read the JSON file
 	catalogJSON, err := os.ReadFile("data/products.json")
 	if err != nil {
 		return err
 	}
-	if err := jsonpb.Unmarshal(bytes.NewReader(catalogJSON), catalog); err != nil {
+
+	// Unmarshal the JSON into the Protobuf message
+	if err := protojson.Unmarshal(catalogJSON, catalog); err != nil {
 		return err
 	}
 
