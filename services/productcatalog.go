@@ -119,33 +119,46 @@ func (s *ProductCatalogService) Run() error {
 
 // ListProducts lists all available products
 func (s *ProductCatalogService) ListProducts(ctx context.Context, req *pb.Empty) (*pb.ListProductsResponse, error) {
+	log.Println("ListProducts: Received request")
+
 	time.Sleep(s.extraLatency)
 
-	return &pb.ListProductsResponse{
+	response := &pb.ListProductsResponse{
 		Products: s.parseCatalog(),
-	}, nil
+	}
+
+	log.Printf("ListProducts: Responding with %d products\n", len(response.Products))
+
+	return response, nil
 }
 
 // GetProduct retrieves a product by its ID
 func (s *ProductCatalogService) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.Product, error) {
+	log.Printf("GetProduct: Received request for product ID %s\n", req.Id)
+
 	time.Sleep(s.extraLatency)
 
 	var found *pb.Product
 	for i := 0; i < len(s.parseCatalog()); i++ {
 		if req.Id == s.parseCatalog()[i].Id {
 			found = s.parseCatalog()[i]
+			break
 		}
 	}
 
 	if found == nil {
+		log.Printf("GetProduct: Product with ID %s not found\n", req.Id)
 		return nil, status.Errorf(codes.NotFound, "no product with ID %s", req.Id)
 	}
 
+	log.Printf("GetProduct: Found product with ID %s\n", found.Id)
 	return found, nil
 }
 
 // SearchProducts searches for products matching a query
 func (s *ProductCatalogService) SearchProducts(ctx context.Context, req *pb.SearchProductsRequest) (*pb.SearchProductsResponse, error) {
+	log.Printf("SearchProducts: Received request with query: %s\n", req.Query)
+
 	time.Sleep(s.extraLatency)
 
 	var ps []*pb.Product
@@ -155,6 +168,8 @@ func (s *ProductCatalogService) SearchProducts(ctx context.Context, req *pb.Sear
 			ps = append(ps, product)
 		}
 	}
+
+	log.Printf("SearchProducts: Search completed. Query: %s, Results: %d\n", req.Query, len(ps))
 
 	return &pb.SearchProductsResponse{Results: ps}, nil
 }

@@ -13,15 +13,13 @@ import (
 
 	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
 
 const (
 	port            = "8080"
-	defaultCurrency = "USD"
+	defaultCurrency = "CNY"
 	cookieMaxAge    = 60 * 60 * 48
 
 	cookiePrefix    = "shop_"
@@ -119,25 +117,38 @@ func (fe *frontendServer) Run() error {
 	return http.ListenAndServe(fmt.Sprintf(":%d", fe.port), nil)
 }
 
+// homeHandler handles requests to the home page
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
-	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
-	log.WithField("currency", currentCurrency(r)).Info("home")
+	log.Printf("homeHandler: Received request. Currency: %s", currentCurrency(r))
+
+	// Retrieve currencies
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
-		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
+		log.Printf("homeHandler: Error retrieving currencies: %v", err)
+		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
 		return
 	}
+	log.Printf("homeHandler: Retrieved %d currencies", len(currencies))
+
+	// Retrieve products
 	products, err := fe.getProducts(r.Context())
 	if err != nil {
-		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve products"), http.StatusInternalServerError)
+		log.Printf("homeHandler: Error retrieving products: %v", err)
+		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve products"), http.StatusInternalServerError)
 		return
 	}
+	log.Printf("homeHandler: Retrieved %d products", len(products))
+
+	// Retrieve cart
 	cart, err := fe.getCart(r.Context(), sessionID(r))
 	if err != nil {
-		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
+		log.Printf("homeHandler: Error retrieving cart: %v", err)
+		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
 		return
 	}
+	log.Printf("homeHandler: Retrieved cart with %d items", cartSize(cart))
 
+	// Process products for display
 	type productView struct {
 		Item  *pb.Product
 		Price *pb.Money
@@ -146,22 +157,27 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	for i, p := range products {
 		price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
 		if err != nil {
-			renderHTTPError(log, r, w, errors.Wrapf(err, "failed to do currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
+			log.Printf("homeHandler: Error converting currency for product %s: %v", p.GetId(), err)
+			renderHTTPError(r, w, errors.Wrapf(err, "failed to do currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
 			return
 		}
 		ps[i] = productView{p, price}
 	}
+	log.Printf("homeHandler: Processed %d products with currency conversion", len(ps))
 
-	if err := templates.ExecuteTemplate(w, "home", injectCommonTemplateData(r, map[string]interface{}{
+	// Render template
+	err = templates.ExecuteTemplate(w, "home", injectCommonTemplateData(r, map[string]interface{}{
 		"show_currency": true,
 		"currencies":    currencies,
 		"products":      ps,
 		"cart_size":     cartSize(cart),
 		"banner_color":  os.Getenv("BANNER_COLOR"), // illustrates canary deployments
-		"ad":            fe.chooseAd(r.Context(), []string{}, log),
-	})); err != nil {
-		log.Error(err)
+		"ad":            fe.chooseAd(r.Context(), []string{}),
+	}))
+	if err != nil {
+		log.Printf("homeHandler: Error rendering template: %v", err)
 	}
+	log.Println("homeHandler: Successfully rendered home page")
 }
 
 func (fe *frontendServer) getCurrencies(ctx context.Context) ([]string, error) {
@@ -279,18 +295,21 @@ func sessionID(r *http.Request) string {
 	return ""
 }
 
-func renderHTTPError(log logrus.FieldLogger, r *http.Request, w http.ResponseWriter, err error, code int) {
-	log.WithField("error", err).Error("request error")
-	errMsg := fmt.Sprintf("%+v", err)
+// renderHTTPError renders an error page and logs the error
+func renderHTTPError(r *http.Request, w http.ResponseWriter, err error, code int) {
+	log.Printf("renderHTTPError: request error: %v", err)
 
+	errMsg := fmt.Sprintf("%+v", err)
 	w.WriteHeader(code)
 
-	if templateErr := templates.ExecuteTemplate(w, "error", injectCommonTemplateData(r, map[string]interface{}{
+	// Attempt to render the error page
+	templateErr := templates.ExecuteTemplate(w, "error", injectCommonTemplateData(r, map[string]interface{}{
 		"error":       errMsg,
 		"status_code": code,
 		"status":      http.StatusText(code),
-	})); templateErr != nil {
-		log.Println(templateErr)
+	}))
+	if templateErr != nil {
+		log.Printf("renderHTTPError: error rendering template: %v", templateErr)
 	}
 }
 
@@ -347,11 +366,13 @@ func cartSize(c []*pb.CartItem) int {
 
 // chooseAd queries for advertisements available and randomly chooses one, if
 // available. It ignores the error retrieving the ad since it is not critical.
-func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string, log logrus.FieldLogger) *pb.Ad {
+func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string) *pb.Ad {
 	ads, err := fe.getAd(ctx, ctxKeys)
 	if err != nil {
-		log.WithField("error", err).Warn("failed to retrieve ads")
+		log.Printf("chooseAd: failed to retrieve ads: %v", err)
 		return nil
 	}
+
+	// Choose a random ad from the retrieved ads
 	return ads[rand.Intn(len(ads))]
 }
