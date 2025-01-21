@@ -8,10 +8,12 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	"github.com/appnetorg/OnlineBoutique/services/validator"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -112,6 +114,8 @@ func (fe *frontendServer) Run() error {
 	mustConnGRPC(ctx, &fe.adSvcConn, fe.adSvcAddr)
 
 	http.HandleFunc("/", fe.homeHandler)
+	http.HandleFunc("/cart/checkout", fe.placeOrderHandler)
+	http.HandleFunc("/cart", fe.addToCartHandler)
 
 	log.Printf("frontendServer server running at port: %d", fe.port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", fe.port), nil)
@@ -178,6 +182,155 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("homeHandler: Error rendering template: %v", err)
 	}
 	log.Println("homeHandler: Successfully rendered home page")
+}
+
+// placeOrderHandler handles placing an order
+func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("placeOrderHandler: placing order")
+
+	var (
+		email         = r.FormValue("email")
+		streetAddress = r.FormValue("street_address")
+		zipCode, _    = strconv.ParseInt(r.FormValue("zip_code"), 10, 32)
+		city          = r.FormValue("city")
+		state         = r.FormValue("state")
+		country       = r.FormValue("country")
+		ccNumber      = r.FormValue("credit_card_number")
+		ccMonth, _    = strconv.ParseInt(r.FormValue("credit_card_expiration_month"), 10, 32)
+		ccYear, _     = strconv.ParseInt(r.FormValue("credit_card_expiration_year"), 10, 32)
+		ccCVV, _      = strconv.ParseInt(r.FormValue("credit_card_cvv"), 10, 32)
+	)
+
+	log.Printf("placeOrderHandler: received input - email: %s, address: %s, city: %s, state: %s, country: %s, zip code: %d",
+		email, streetAddress, city, state, country, zipCode)
+
+	payload := validator.PlaceOrderPayload{
+		Email:         email,
+		StreetAddress: streetAddress,
+		ZipCode:       zipCode,
+		City:          city,
+		State:         state,
+		Country:       country,
+		CcNumber:      ccNumber,
+		CcMonth:       ccMonth,
+		CcYear:        ccYear,
+		CcCVV:         ccCVV,
+	}
+	if err := payload.Validate(); err != nil {
+		log.Printf("placeOrderHandler: validation error: %v", err)
+		renderHTTPError(r, w, validator.ValidationErrorResponse(err), http.StatusUnprocessableEntity)
+		return
+	}
+	log.Println("placeOrderHandler: input validation successful")
+
+	order, err := pb.NewCheckoutServiceClient(fe.checkoutSvcConn).
+		PlaceOrder(r.Context(), &pb.PlaceOrderRequest{
+			Email: payload.Email,
+			CreditCard: &pb.CreditCardInfo{
+				CreditCardNumber:          payload.CcNumber,
+				CreditCardExpirationMonth: int32(payload.CcMonth),
+				CreditCardExpirationYear:  int32(payload.CcYear),
+				CreditCardCvv:             int32(payload.CcCVV)},
+			UserId:       sessionID(r),
+			UserCurrency: currentCurrency(r),
+			Address: &pb.Address{
+				StreetAddress: payload.StreetAddress,
+				City:          payload.City,
+				State:         payload.State,
+				ZipCode:       int32(payload.ZipCode),
+				Country:       payload.Country},
+		})
+	if err != nil {
+		log.Printf("placeOrderHandler: error placing order: %v", err)
+		renderHTTPError(r, w, errors.Wrap(err, "failed to complete the order"), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("placeOrderHandler: order placed successfully, Order ID: %s", order.GetOrder().GetOrderId())
+
+	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil)
+	log.Println("placeOrderHandler: retrieved recommendations")
+
+	if len(recommendations) == 0 {
+		log.Println("placeOrderHandler: No recommendations available")
+	} else {
+		for i, rec := range recommendations {
+			log.Printf("Recommendation #%d: ID=%s, Name=%s, Description=%s, Picture=%s, PriceUSD=%v, Categories=%v",
+				i+1, rec.Id, rec.Name, rec.Description, rec.Picture, rec.PriceUsd, rec.Categories)
+		}
+	}
+
+	totalPaid := *order.GetOrder().GetShippingCost()
+	for _, v := range order.GetOrder().GetItems() {
+		multPrice := MultiplySlow(v.GetCost(), uint32(v.GetItem().GetQuantity()))
+		totalPaid = *Must(Sum(&totalPaid, multPrice))
+	}
+	log.Printf("placeOrderHandler: total paid calculated: %d.%02d %s", totalPaid.GetUnits(), totalPaid.GetNanos()/10000000, totalPaid.GetCurrencyCode())
+
+	currencies, err := fe.getCurrencies(r.Context())
+	if err != nil {
+		log.Printf("placeOrderHandler: error retrieving currencies: %v", err)
+		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
+		return
+	}
+	log.Println("placeOrderHandler: retrieved currencies successfully")
+
+	err = templates.ExecuteTemplate(w, "order", injectCommonTemplateData(r, map[string]interface{}{
+		"show_currency":   false,
+		"currencies":      currencies,
+		"order":           order.GetOrder(),
+		"total_paid":      &totalPaid,
+		"recommendations": recommendations,
+	}))
+	if err != nil {
+		log.Printf("placeOrderHandler: error rendering template: %v", err)
+		return
+	}
+	log.Println("placeOrderHandler: order page rendered successfully")
+}
+
+func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("addToCartHandler: Start processing request")
+
+	quantity, _ := strconv.ParseUint(r.FormValue("quantity"), 10, 32)
+	productID := r.FormValue("product_id")
+	log.Printf("addToCartHandler: Received product_id=%s, quantity=%d", productID, quantity)
+
+	payload := validator.AddToCartPayload{
+		Quantity:  quantity,
+		ProductID: productID,
+	}
+
+	// Validate payload
+	if err := payload.Validate(); err != nil {
+		log.Printf("addToCartHandler: Validation error for product_id=%s, quantity=%d: %v", productID, quantity, err)
+		renderHTTPError(r, w, validator.ValidationErrorResponse(err), http.StatusUnprocessableEntity)
+		return
+	}
+	log.Printf("addToCartHandler: Payload validated for product_id=%s, quantity=%d", productID, quantity)
+
+	// Retrieve product details
+	log.Printf("addToCartHandler: Fetching product details for product_id=%s", productID)
+	p, err := fe.getProduct(r.Context(), payload.ProductID)
+	if err != nil {
+		log.Printf("addToCartHandler: Error retrieving product for product_id=%s: %v", productID, err)
+		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve product"), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("addToCartHandler: Retrieved product details for product_id=%s", productID)
+
+	// Add product to cart
+	log.Printf("addToCartHandler: Adding product_id=%s, quantity=%d to cart", productID, payload.Quantity)
+	if err := fe.insertCart(r.Context(), sessionID(r), p.GetId(), int32(payload.Quantity)); err != nil {
+		log.Printf("addToCartHandler: Error adding product_id=%s to cart: %v", productID, err)
+		renderHTTPError(r, w, errors.Wrap(err, "failed to add to cart"), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("addToCartHandler: Successfully added product_id=%s, quantity=%d to cart", productID, payload.Quantity)
+
+	// Redirect to cart
+	w.Header().Set("location", "/cart")
+	w.WriteHeader(http.StatusFound)
+	log.Println("addToCartHandler: Redirected to /cart")
 }
 
 func (fe *frontendServer) getCurrencies(ctx context.Context) ([]string, error) {

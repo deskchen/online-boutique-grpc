@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"os"
-	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -14,7 +14,6 @@ import (
 	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -28,20 +27,10 @@ var (
 	ErrMismatchingCurrency = errors.New("mismatching currency codes")
 )
 
-var cslog *logrus.Logger
-
 func init() {
-	cslog = logrus.New()
-	cslog.Level = logrus.DebugLevel
-	cslog.Formatter = &logrus.JSONFormatter{
-		FieldMap: logrus.FieldMap{
-			logrus.FieldKeyTime:  "timestamp",
-			logrus.FieldKeyLevel: "severity",
-			logrus.FieldKeyMsg:   "message",
-		},
-		TimestampFormat: time.RFC3339Nano,
-	}
-	cslog.Out = os.Stdout
+	// Configure default log output
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
+	log.SetOutput(os.Stdout)
 }
 
 // NewCheckoutService returns a new server for the CheckoutService
@@ -98,15 +87,15 @@ func (cs *CheckoutService) Run() error {
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cs.port))
 	if err != nil {
-		cslog.Fatalf("failed to listen: %v", err)
+		log.Fatalf("failed to listen: %v", err)
 	}
-	cslog.Printf("CheckoutService running at port: %d", cs.port)
+	log.Printf("CheckoutService running at port: %d", cs.port)
 	return srv.Serve(lis)
 }
 
 // PlaceOrder processes an order placement request
 func (cs *CheckoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
-	cslog.Infof("[PlaceOrder] user_id=%q user_currency=%q", req.UserId, req.UserCurrency)
+	log.Printf("[PlaceOrder] user_id=%q user_currency=%q", req.UserId, req.UserCurrency)
 
 	orderID, err := uuid.NewUUID()
 	if err != nil {
@@ -131,7 +120,7 @@ func (cs *CheckoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to charge card: %+v", err)
 	}
-	cslog.Infof("payment went through (transaction_id: %s)", txID)
+	log.Printf("payment went through (transaction_id: %s)", txID)
 
 	shippingTrackingID, err := cs.shipOrder(ctx, req.Address, prep.cartItems)
 	if err != nil {
@@ -149,9 +138,9 @@ func (cs *CheckoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	}
 
 	if err := cs.sendOrderConfirmation(ctx, req.Email, orderResult); err != nil {
-		cslog.Warnf("failed to send order confirmation to %q: %+v", req.Email, err)
+		log.Printf("failed to send order confirmation to %q: %+v", req.Email, err)
 	} else {
-		cslog.Infof("order confirmation email sent to %q", req.Email)
+		log.Printf("order confirmation email sent to %q", req.Email)
 	}
 	resp := &pb.PlaceOrderResponse{Order: orderResult}
 	return resp, nil
@@ -164,23 +153,41 @@ type orderPrep struct {
 }
 
 func (cs *CheckoutService) prepareOrderItemsAndShippingQuoteFromCart(ctx context.Context, userID, userCurrency string, address *pb.Address) (orderPrep, error) {
+	log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Start processing for userID=%s, userCurrency=%s", userID, userCurrency)
+
 	var out orderPrep
+
+	// Get user cart
 	cartItems, err := cs.getUserCart(ctx, userID)
 	if err != nil {
+		log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Error fetching cart for userID=%s: %v", userID, err)
 		return out, fmt.Errorf("cart failure: %+v", err)
 	}
+	log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Retrieved %d items from cart for userID=%s", len(cartItems), userID)
+
+	// Prepare order items
 	orderItems, err := cs.prepOrderItems(ctx, cartItems, userCurrency)
 	if err != nil {
+		log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Error preparing order items for userID=%s: %v", userID, err)
 		return out, fmt.Errorf("failed to prepare order: %+v", err)
 	}
+	log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Prepared %d order items for userID=%s", len(orderItems), userID)
+
+	// Quote shipping
 	shippingUSD, err := cs.quoteShipping(ctx, address, cartItems)
 	if err != nil {
+		log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Error quoting shipping for userID=%s: %v", userID, err)
 		return out, fmt.Errorf("shipping quote failure: %+v", err)
 	}
+	log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Received shipping quote in USD for userID=%s", userID)
+
+	// Convert shipping cost
 	shippingPrice, err := cs.convertCurrency(shippingUSD, userCurrency)
 	if err != nil {
+		log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Error converting shipping cost to currency=%s for userID=%s: %v", userCurrency, userID, err)
 		return out, fmt.Errorf("failed to convert shipping cost to currency: %+v", err)
 	}
+	log.Printf("prepareOrderItemsAndShippingQuoteFromCart: Converted shipping cost to currency=%s for userID=%s", userCurrency, userID)
 
 	out.shippingCostLocalized = shippingPrice
 	out.cartItems = cartItems

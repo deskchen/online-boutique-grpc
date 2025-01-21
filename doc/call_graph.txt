@@ -1,0 +1,21 @@
+Home Handler:
+Frontend (Home) -> Currency (GetSupportedCurrencies)
+         -> ProductCatalog (ListProducts)
+         -> Cart (GetCart)
+         -> Currency (Convert)
+         -> Ad (GetAds)
+
+
+Checkout Handler
+Frontend (Checkout) -> Checkout (PlaceOrder) -> Cart (GetCart)
+                                             -> ProductCatalog (GetProduct)
+                                             -> Shipping (GetQuote)
+                                             -> Currency (Convert)                                            
+                                             -> Payment (ChargeCard)
+                                             -> Shipping (ShipOrder)
+                                             -> Cart (EmptyCart)
+                                             -> Email (SendOrderConfirmation)
+                    -> Recommendation (ListRecommendations) -> ProductCatalog (ListProducts)
+                    -> ProductCatalog (GetProduct)
+                    -> Currency (GetSupportedCurrencies)
+                                             
