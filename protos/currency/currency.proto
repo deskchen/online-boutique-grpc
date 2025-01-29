@@ -4,7 +4,7 @@ option go_package = "./protos/currency";
 package currency;
 
 service CurrencyService {
-    rpc GetSupportedCurrencies(Empty) returns (GetSupportedCurrenciesResponse) {}
+    rpc GetSupportedCurrencies(EmptyUser) returns (GetSupportedCurrenciesResponse) {}
     rpc Convert(CurrencyConversionRequest) returns (Money) {}
 }
 
@@ -36,7 +36,13 @@ message CurrencyConversionRequest {
 
     // The 3-letter currency code defined in ISO 4217.
     string to_code = 2;
+
+    string user_id = 3;
 }
 
 
 message Empty {}
+
+message EmptyUser {
+    string user_id = 1; 
+}

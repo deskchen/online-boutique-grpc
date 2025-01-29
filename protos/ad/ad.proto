@@ -8,9 +8,12 @@ service AdService {
 }
 
 message AdRequest {
+    string user_id = 1;
+
     // List of important key words from the current page describing the context.
-    repeated string context_keys = 1;
+    repeated string context_keys = 2;
 }
+
 
 message AdResponse {
     repeated Ad ads = 1;

@@ -58,7 +58,7 @@ func (s *CurrencyService) Run() error {
 }
 
 // GetSupportedCurrencies returns a list of supported currency codes
-func (s *CurrencyService) GetSupportedCurrencies(ctx context.Context, req *pb.Empty) (*pb.GetSupportedCurrenciesResponse, error) {
+func (s *CurrencyService) GetSupportedCurrencies(ctx context.Context, req *pb.EmptyUser) (*pb.GetSupportedCurrenciesResponse, error) {
 	log.Printf("GetSupportedCurrencies request received")
 	keys := make([]string, 0, len(s.conversionMap))
 	for k := range s.conversionMap {

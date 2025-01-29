@@ -52,7 +52,7 @@ func (s *RecommendationService) ListRecommendations(ctx context.Context, req *pb
 	log.Printf("ListRecommendations request received for user_id = %v, product_ids = %v", req.GetUserId(), req.GetProductIds())
 
 	// Fetch a list of products from the product catalog.
-	catalogProducts, err := pb.NewProductCatalogServiceClient(s.productCatalogSvcConn).ListProducts(ctx, &pb.Empty{})
+	catalogProducts, err := pb.NewProductCatalogServiceClient(s.productCatalogSvcConn).ListProducts(ctx, &pb.EmptyUser{UserId: req.GetUserId()})
 	if err != nil {
 		log.Printf("Error fetching catalog products: %v", err)
 		return nil, err

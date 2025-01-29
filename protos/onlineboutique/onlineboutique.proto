@@ -51,6 +51,10 @@ message Cart {
 
 message Empty {}
 
+message EmptyUser {
+    string user_id = 1; 
+}
+
 // ---------------Recommendation service----------
 
 service RecommendationService {
@@ -69,7 +73,7 @@ message ListRecommendationsResponse {
 // ---------------Product Catalog----------------
 
 service ProductCatalogService {
-    rpc ListProducts(Empty) returns (ListProductsResponse) {}
+    rpc ListProducts(EmptyUser) returns (ListProductsResponse) {}
     rpc GetProduct(GetProductRequest) returns (Product) {}
     rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse) {}
 }
@@ -138,7 +142,7 @@ message Address {
 // -----------------Currency service-----------------
 
 service CurrencyService {
-    rpc GetSupportedCurrencies(Empty) returns (GetSupportedCurrenciesResponse) {}
+    rpc GetSupportedCurrencies(EmptyUser) returns (GetSupportedCurrenciesResponse) {}
     rpc Convert(CurrencyConversionRequest) returns (Money) {}
 }
 
@@ -170,6 +174,8 @@ message CurrencyConversionRequest {
 
     // The 3-letter currency code defined in ISO 4217.
     string to_code = 2;
+
+    string user_id = 3;
 }
 
 // -------------Payment service-----------------
@@ -245,8 +251,10 @@ service AdService {
 }
 
 message AdRequest {
+    string user_id = 1;
+
     // List of important key words from the current page describing the context.
-    repeated string context_keys = 1;
+    repeated string context_keys = 2;
 }
 
 message AdResponse {

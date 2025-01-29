@@ -118,7 +118,7 @@ func (s *ProductCatalogService) Run() error {
 }
 
 // ListProducts lists all available products
-func (s *ProductCatalogService) ListProducts(ctx context.Context, req *pb.Empty) (*pb.ListProductsResponse, error) {
+func (s *ProductCatalogService) ListProducts(ctx context.Context, req *pb.EmptyUser) (*pb.ListProductsResponse, error) {
 	log.Println("ListProducts: Received request")
 
 	time.Sleep(s.extraLatency)

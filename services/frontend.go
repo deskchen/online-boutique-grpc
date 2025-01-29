@@ -123,10 +123,11 @@ func (fe *frontendServer) Run() error {
 
 // homeHandler handles requests to the home page
 func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("homeHandler: Received request. Currency: %s", currentCurrency(r))
+	userId := r.FormValue("user_id")
+	log.Printf("homeHandler: Received request. UserID: %s, Currency: %s", userId, currentCurrency(r))
 
 	// Retrieve currencies
-	currencies, err := fe.getCurrencies(r.Context())
+	currencies, err := fe.getCurrencies(r.Context(), userId)
 	if err != nil {
 		log.Printf("homeHandler: Error retrieving currencies: %v", err)
 		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -135,7 +136,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("homeHandler: Retrieved %d currencies", len(currencies))
 
 	// Retrieve products
-	products, err := fe.getProducts(r.Context())
+	products, err := fe.getProducts(r.Context(), userId)
 	if err != nil {
 		log.Printf("homeHandler: Error retrieving products: %v", err)
 		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve products"), http.StatusInternalServerError)
@@ -144,7 +145,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("homeHandler: Retrieved %d products", len(products))
 
 	// Retrieve cart
-	cart, err := fe.getCart(r.Context(), sessionID(r))
+	cart, err := fe.getCart(r.Context(), userId)
 	if err != nil {
 		log.Printf("homeHandler: Error retrieving cart: %v", err)
 		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
@@ -159,7 +160,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	ps := make([]productView, len(products))
 	for i, p := range products {
-		price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
+		price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r), userId)
 		if err != nil {
 			log.Printf("homeHandler: Error converting currency for product %s: %v", p.GetId(), err)
 			renderHTTPError(r, w, errors.Wrapf(err, "failed to do currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
@@ -176,7 +177,7 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 		"products":      ps,
 		"cart_size":     cartSize(cart),
 		"banner_color":  os.Getenv("BANNER_COLOR"), // illustrates canary deployments
-		"ad":            fe.chooseAd(r.Context(), []string{}),
+		"ad":            fe.chooseAd(r.Context(), []string{}, userId),
 	}))
 	if err != nil {
 		log.Printf("homeHandler: Error rendering template: %v", err)
@@ -186,10 +187,11 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 
 // placeOrderHandler handles placing an order
 func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("placeOrderHandler: placing order")
+	// log.Println("placeOrderHandler: placing order")
 
 	var (
 		email         = r.FormValue("email")
+		userId        = r.FormValue("user_id")
 		streetAddress = r.FormValue("street_address")
 		zipCode, _    = strconv.ParseInt(r.FormValue("zip_code"), 10, 32)
 		city          = r.FormValue("city")
@@ -201,8 +203,8 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		ccCVV, _      = strconv.ParseInt(r.FormValue("credit_card_cvv"), 10, 32)
 	)
 
-	log.Printf("placeOrderHandler: received input - email: %s, address: %s, city: %s, state: %s, country: %s, zip code: %d",
-		email, streetAddress, city, state, country, zipCode)
+	log.Printf("placeOrderHandler: received input - user_id: %s, email: %s, address: %s, city: %s, state: %s, country: %s, zip code: %d",
+		userId, email, streetAddress, city, state, country, zipCode)
 
 	payload := validator.PlaceOrderPayload{
 		Email:         email,
@@ -266,7 +268,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}
 	log.Printf("placeOrderHandler: total paid calculated: %d.%02d %s", totalPaid.GetUnits(), totalPaid.GetNanos()/10000000, totalPaid.GetCurrencyCode())
 
-	currencies, err := fe.getCurrencies(r.Context())
+	currencies, err := fe.getCurrencies(r.Context(), userId)
 	if err != nil {
 		log.Printf("placeOrderHandler: error retrieving currencies: %v", err)
 		renderHTTPError(r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
@@ -333,9 +335,9 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 	log.Println("addToCartHandler: Redirected to /cart")
 }
 
-func (fe *frontendServer) getCurrencies(ctx context.Context) ([]string, error) {
+func (fe *frontendServer) getCurrencies(ctx context.Context, userID string) ([]string, error) {
 	currs, err := pb.NewCurrencyServiceClient(fe.currencySvcConn).
-		GetSupportedCurrencies(ctx, &pb.Empty{})
+		GetSupportedCurrencies(ctx, &pb.EmptyUser{UserId: userID})
 	if err != nil {
 		return nil, err
 	}
@@ -348,9 +350,9 @@ func (fe *frontendServer) getCurrencies(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-func (fe *frontendServer) getProducts(ctx context.Context) ([]*pb.Product, error) {
+func (fe *frontendServer) getProducts(ctx context.Context, userID string) ([]*pb.Product, error) {
 	resp, err := pb.NewProductCatalogServiceClient(fe.productCatalogSvcConn).
-		ListProducts(ctx, &pb.Empty{})
+		ListProducts(ctx, &pb.EmptyUser{UserId: userID})
 	return resp.GetProducts(), err
 }
 
@@ -380,17 +382,18 @@ func (fe *frontendServer) insertCart(ctx context.Context, userID, productID stri
 	return err
 }
 
-func (fe *frontendServer) convertCurrency(ctx context.Context, money *pb.Money, currency string) (*pb.Money, error) {
+func (fe *frontendServer) convertCurrency(ctx context.Context, money *pb.Money, currency string, userID string) (*pb.Money, error) {
 	if money.GetCurrencyCode() == currency {
 		return money, nil
 	}
 	return pb.NewCurrencyServiceClient(fe.currencySvcConn).
 		Convert(ctx, &pb.CurrencyConversionRequest{
 			From:   money,
-			ToCode: currency})
+			ToCode: currency,
+			UserId: userID})
 }
 
-func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string) (*pb.Money, error) {
+func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string, userID string) (*pb.Money, error) {
 	quote, err := pb.NewShippingServiceClient(fe.shippingSvcConn).GetQuote(ctx,
 		&pb.GetQuoteRequest{
 			Address: nil,
@@ -398,7 +401,7 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.Cart
 	if err != nil {
 		return nil, err
 	}
-	localized, err := fe.convertCurrency(ctx, quote.GetCostUsd(), currency)
+	localized, err := fe.convertCurrency(ctx, quote.GetCostUsd(), currency, userID)
 	return localized, errors.Wrap(err, "failed to convert currency for shipping cost")
 }
 
@@ -422,12 +425,13 @@ func (fe *frontendServer) getRecommendations(ctx context.Context, userID string,
 	return out, err
 }
 
-func (fe *frontendServer) getAd(ctx context.Context, ctxKeys []string) ([]*pb.Ad, error) {
+func (fe *frontendServer) getAd(ctx context.Context, ctxKeys []string, userID string) ([]*pb.Ad, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*100)
 	defer cancel()
 
 	resp, err := pb.NewAdServiceClient(fe.adSvcConn).GetAds(ctx, &pb.AdRequest{
 		ContextKeys: ctxKeys,
+		UserId:      userID,
 	})
 	return resp.GetAds(), errors.Wrap(err, "failed to get ads")
 }
@@ -519,8 +523,8 @@ func cartSize(c []*pb.CartItem) int {
 
 // chooseAd queries for advertisements available and randomly chooses one, if
 // available. It ignores the error retrieving the ad since it is not critical.
-func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string) *pb.Ad {
-	ads, err := fe.getAd(ctx, ctxKeys)
+func (fe *frontendServer) chooseAd(ctx context.Context, ctxKeys []string, userId string) *pb.Ad {
+	ads, err := fe.getAd(ctx, ctxKeys, userId)
 	if err != nil {
 		log.Printf("chooseAd: failed to retrieve ads: %v", err)
 		return nil

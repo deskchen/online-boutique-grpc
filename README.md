@@ -29,10 +29,10 @@ kubectl apply -Rf ./kubernetes/apply
 kubectl get pods
 
 # Test (Home Handler)
-curl http://10.96.88.88/
+curl http://10.96.88.88/ -d "user_id=test"
 
 # Checkout Handler
-curl -X POST http://10.96.88.88/cart/checkout -d "email=test@example.com" -d "street_address=123 Main St" -d "zip_code=98101" -d "city=Seattle" -d "state=WA" -d "country=USA" -d "credit_card_number=4111111111111111" -d "credit_card_expiration_month=12" -d "credit_card_expiration_year=2025" -d "credit_card_cvv=123"
+curl -X POST http://10.96.88.88/cart/checkout -d "email=test@example.com" -d "street_address=123 Main St" -d "zip_code=98101" -d "city=Seattle" -d "state=WA" -d "country=USA" -d "credit_card_number=4111111111111111" -d "credit_card_expiration_month=12" -d "credit_card_expiration_year=2025" -d "credit_card_cvv=123" -d "user_id=test"
 
 # wrk
 ./utils/wrk -c 1 -t 1 http://10.96.88.88/ -d 30s -L
