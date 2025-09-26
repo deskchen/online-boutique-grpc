@@ -42,7 +42,7 @@ spec:
       serviceAccountName: onlineboutique-ad
       containers:
       - name: ad
-        image: appnetorg/onlineboutique-grpc:latest
+        image: deskchen/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["ad"]
         imagePullPolicy: Always

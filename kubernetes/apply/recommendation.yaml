@@ -42,7 +42,7 @@ spec:
       serviceAccountName: onlineboutique-recommendation
       containers:
       - name: recommendation
-        image: appnetorg/onlineboutique-grpc:latest
+        image: deskchen/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["recommendation"]
         imagePullPolicy: Always

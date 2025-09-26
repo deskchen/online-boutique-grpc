@@ -42,7 +42,7 @@ spec:
       serviceAccountName: onlineboutique-email
       containers:
       - name: email
-        image: appnetorg/onlineboutique-grpc:latest
+        image: deskchen/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["email"]
         imagePullPolicy: Always

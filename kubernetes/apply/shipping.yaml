@@ -42,7 +42,7 @@ spec:
       serviceAccountName: onlineboutique-shipping
       containers:
       - name: shipping
-        image: appnetorg/onlineboutique-grpc:latest
+        image: deskchen/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["shipping"]
         imagePullPolicy: Always

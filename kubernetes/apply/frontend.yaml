@@ -42,7 +42,7 @@ spec:
       serviceAccountName: onlineboutique-frontend
       containers:
       - name: frontend
-        image: appnetorg/onlineboutique-grpc:latest
+        image: deskchen/onlineboutique-grpc:latest
         command: ["/app/onlineboutique"]
         args: ["frontend"]
         imagePullPolicy: Always
