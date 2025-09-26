@@ -7,9 +7,10 @@ import (
 	"math/rand"
 	"net"
 
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
-
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
 )
 
 const (
@@ -17,10 +18,11 @@ const (
 )
 
 // NewAdService returns a new server for the AdService
-func NewAdService(port int) *AdService {
+func NewAdService(port int, tracer opentracing.Tracer) *AdService {
 	return &AdService{
-		port: port,
-		ads:  createAdsMap(),
+		port:   port,
+		ads:    createAdsMap(),
+		Tracer: tracer,
 	}
 }
 
@@ -29,11 +31,15 @@ type AdService struct {
 	port int
 	ads  map[string]*pb.Ad
 	pb.AdServiceServer
+
+	Tracer opentracing.Tracer
 }
 
 // Run starts the server
 func (s *AdService) Run() error {
-	opts := []grpc.ServerOption{}
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterAdServiceServer(srv, s)
 

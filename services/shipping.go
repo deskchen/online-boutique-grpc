@@ -10,14 +10,17 @@ import (
 
 	"google.golang.org/grpc"
 
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 )
 
 // NewShippingService returns a new server for the ShippingService
-func NewShippingService(port int) *ShippingService {
+func NewShippingService(port int, tracer opentracing.Tracer) *ShippingService {
 	return &ShippingService{
-		name: "shipping-service",
-		port: port,
+		name:   "shipping-service",
+		port:   port,
+		Tracer: tracer,
 	}
 }
 
@@ -26,11 +29,16 @@ type ShippingService struct {
 	name string
 	port int
 	pb.ShippingServiceServer
+
+	Tracer opentracing.Tracer
 }
 
 // Run starts the server
 func (s *ShippingService) Run() error {
-	srv := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+	}
+	srv := grpc.NewServer(opts...)
 	pb.RegisterShippingServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))

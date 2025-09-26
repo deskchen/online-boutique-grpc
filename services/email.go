@@ -10,7 +10,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 )
 
 // Embed the HTML template for the email
@@ -23,9 +25,10 @@ var (
 )
 
 // NewEmailService returns a new server for the EmailService
-func NewEmailService(port int) *EmailService {
+func NewEmailService(port int, tracer opentracing.Tracer) *EmailService {
 	return &EmailService{
-		port: port,
+		port:   port,
+		Tracer: tracer,
 	}
 }
 
@@ -33,11 +36,16 @@ func NewEmailService(port int) *EmailService {
 type EmailService struct {
 	port int
 	pb.EmailServiceServer
+
+	Tracer opentracing.Tracer
 }
 
 // Run starts the server
 func (s *EmailService) Run() error {
-	srv := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+	}
+	srv := grpc.NewServer(opts...)
 	pb.RegisterEmailServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))

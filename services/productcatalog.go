@@ -17,7 +17,9 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 )
 
 // ProductCatalogService implements the ProductCatalogService
@@ -30,12 +32,15 @@ type ProductCatalogService struct {
 	mu            sync.RWMutex
 	extraLatency  time.Duration
 	reloadCatalog bool
+
+	Tracer opentracing.Tracer
 }
 
 // NewProductCatalogService creates a new ProductCatalogService
-func NewProductCatalogService(port int) *ProductCatalogService {
+func NewProductCatalogService(port int, tracer opentracing.Tracer) *ProductCatalogService {
 	svc := &ProductCatalogService{
-		port: port,
+		port:   port,
+		Tracer: tracer,
 	}
 
 	// Initialize extra latency from environment variable
@@ -106,7 +111,10 @@ func (s *ProductCatalogService) parseCatalog() []*pb.Product {
 
 // Run starts the gRPC server
 func (s *ProductCatalogService) Run() error {
-	srv := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+	}
+	srv := grpc.NewServer(opts...)
 	pb.RegisterProductCatalogServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))

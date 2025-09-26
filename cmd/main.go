@@ -5,7 +5,10 @@ import (
 	"log"
 	"os"
 
-	services "github.com/appnetorg/OnlineBoutique/services"
+	"strconv"
+
+	services "github.com/deskchen/online-boutique-grpc/services"
+	"github.com/deskchen/online-boutique-grpc/services/tracing"
 )
 
 type server interface {
@@ -25,34 +28,40 @@ func main() {
 		checkoutport       = flag.Int("checkoutport", 8087, "checkout service port")
 		recommendationport = flag.Int("recommendationport", 8088, "recommendation service port")
 		adport             = flag.Int("adport", 8089, "ad service port")
+		jaegerport         = flag.Int("jaegerport", 6831, "jaeger agent port")
 	)
 	flag.Parse()
 
 	var srv server
 	var cmd = os.Args[1]
 	println("cmd parsed: ", cmd)
+	tracer, err := tracing.Init(cmd, "jaeger:"+strconv.Itoa(*jaegerport))
+	if err != nil {
+		log.Fatalf("ERROR: cannot init Jaeger: %v\n", err)
+	}
+	log.Printf("Jaeger Tracer Initialised for %s", cmd)
 
 	switch cmd {
 	case "cart":
-		srv = services.NewCartService(*cartport)
+		srv = services.NewCartService(*cartport, tracer)
 	case "productcatalog":
-		srv = services.NewProductCatalogService(*productcatalogport)
+		srv = services.NewProductCatalogService(*productcatalogport, tracer)
 	case "currency":
-		srv = services.NewCurrencyService(*currencyport)
+		srv = services.NewCurrencyService(*currencyport, tracer)
 	case "payment":
-		srv = services.NewPaymentService(*paymentport)
+		srv = services.NewPaymentService(*paymentport, tracer)
 	case "shipping":
-		srv = services.NewShippingService(*shippingport)
+		srv = services.NewShippingService(*shippingport, tracer)
 	case "email":
-		srv = services.NewEmailService(*emailport)
+		srv = services.NewEmailService(*emailport, tracer)
 	case "checkout":
-		srv = services.NewCheckoutService(*checkoutport)
+		srv = services.NewCheckoutService(*checkoutport, tracer)
 	case "recommendation":
-		srv = services.NewRecommendationService(*recommendationport)
+		srv = services.NewRecommendationService(*recommendationport, tracer)
 	case "ad":
-		srv = services.NewAdService(*adport)
+		srv = services.NewAdService(*adport, tracer)
 	case "frontend":
-		srv = services.NewFrontendServer(*frontendport)
+		srv = services.NewFrontendServer(*frontendport, tracer)
 	default:
 		log.Fatalf("unknown cmd: %s", cmd)
 	}

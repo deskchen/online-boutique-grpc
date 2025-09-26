@@ -7,16 +7,19 @@ import (
 	"log"
 	"net"
 
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
 )
 
 // NewCartService returns a new server for the CartService
-func NewCartService(port int) *CartService {
+func NewCartService(port int, tracer opentracing.Tracer) *CartService {
 	return &CartService{
-		port: port,
+		port:   port,
+		Tracer: tracer,
 	}
 }
 
@@ -27,6 +30,8 @@ type CartService struct {
 
 	cartRedisAddr string
 	rdb           *redis.Client // Redis client
+
+	Tracer opentracing.Tracer
 }
 
 // Run starts the server
@@ -38,7 +43,11 @@ func (s *CartService) Run() error {
 		Addr: s.cartRedisAddr,
 	})
 
-	srv := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+	}
+
+	srv := grpc.NewServer(opts...)
 	pb.RegisterCartServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))

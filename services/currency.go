@@ -12,7 +12,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 )
 
 const (
@@ -24,10 +26,12 @@ type CurrencyService struct {
 	port int
 	pb.CurrencyServiceServer
 	conversionMap map[string]float64
+
+	Tracer opentracing.Tracer
 }
 
 // NewCurrencyService returns a new server for the CurrencyService
-func NewCurrencyService(port int) *CurrencyService {
+func NewCurrencyService(port int, tracer opentracing.Tracer) *CurrencyService {
 	// Read the file content into a []byte
 	currencyData, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -41,12 +45,17 @@ func NewCurrencyService(port int) *CurrencyService {
 	return &CurrencyService{
 		port:          port,
 		conversionMap: conversionMap,
+		Tracer:        tracer,
 	}
 }
 
 // Run starts the server
 func (s *CurrencyService) Run() error {
-	srv := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+	}
+
+	srv := grpc.NewServer(opts...)
 	pb.RegisterCurrencyServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))

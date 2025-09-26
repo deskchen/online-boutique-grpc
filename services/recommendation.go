@@ -9,13 +9,16 @@ import (
 
 	"google.golang.org/grpc"
 
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 )
 
 // NewRecommendationService returns a new server for the RecommendationService
-func NewRecommendationService(port int) *RecommendationService {
+func NewRecommendationService(port int, tracer opentracing.Tracer) *RecommendationService {
 	return &RecommendationService{
-		port: port,
+		port:   port,
+		Tracer: tracer,
 	}
 }
 
@@ -27,6 +30,8 @@ type RecommendationService struct {
 
 	productCatalogSvcAddr string
 	productCatalogSvcConn *grpc.ClientConn
+
+	Tracer opentracing.Tracer
 }
 
 // Run starts the server
@@ -36,7 +41,10 @@ func (s *RecommendationService) Run() error {
 	mustMapEnv(&s.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
 	mustConnGRPC(ctx, &s.productCatalogSvcConn, s.productCatalogSvcAddr)
 
-	srv := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+	}
+	srv := grpc.NewServer(opts...)
 	pb.RegisterRecommendationServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))

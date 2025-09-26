@@ -11,8 +11,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
 	"github.com/google/uuid"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -34,9 +36,10 @@ func init() {
 }
 
 // NewCheckoutService returns a new server for the CheckoutService
-func NewCheckoutService(port int) *CheckoutService {
+func NewCheckoutService(port int, tracer opentracing.Tracer) *CheckoutService {
 	return &CheckoutService{
-		port: port,
+		port:   port,
+		Tracer: tracer,
 	}
 }
 
@@ -62,6 +65,8 @@ type CheckoutService struct {
 
 	paymentSvcAddr string
 	paymentSvcConn *grpc.ClientConn
+
+	Tracer opentracing.Tracer
 }
 
 // Run starts the server
@@ -82,7 +87,10 @@ func (cs *CheckoutService) Run() error {
 	mustConnGRPC(ctx, &cs.emailSvcConn, cs.emailSvcAddr)
 	mustConnGRPC(ctx, &cs.paymentSvcConn, cs.paymentSvcAddr)
 
-	srv := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(cs.Tracer)),
+	}
+	srv := grpc.NewServer(opts...)
 	pb.RegisterCheckoutServiceServer(srv, cs)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cs.port))

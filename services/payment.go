@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
+	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
 
-	pb "github.com/appnetorg/OnlineBoutique/protos/onlineboutique"
+	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
 )
 
 type InvalidCreditCardErr struct{}
@@ -70,9 +72,10 @@ func validateAndCharge(amount *pb.Money, card *pb.CreditCardInfo) (string, error
 }
 
 // NewPaymentService returns a new server for the PaymentService
-func NewPaymentService(port int) *PaymentService {
+func NewPaymentService(port int, tracer opentracing.Tracer) *PaymentService {
 	return &PaymentService{
-		port: port,
+		port:   port,
+		Tracer: tracer,
 	}
 }
 
@@ -80,11 +83,16 @@ func NewPaymentService(port int) *PaymentService {
 type PaymentService struct {
 	port int
 	pb.PaymentServiceServer
+
+	Tracer opentracing.Tracer
 }
 
 // Run starts the server
 func (s *PaymentService) Run() error {
-	srv := grpc.NewServer()
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+	}
+	srv := grpc.NewServer(opts...)
 	pb.RegisterPaymentServiceServer(srv, s)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))

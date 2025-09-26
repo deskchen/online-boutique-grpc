@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.22 AS builder
+FROM golang:1.23.9 AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -29,6 +29,7 @@ COPY --from=builder /app/onlineboutique .
 COPY services/templates /app/templates
 COPY services/static /app/static
 COPY services/data /app/data
+COPY services/tracing /app/tracing
 
 RUN chmod +x /app/onlineboutique
 
@@ -43,4 +44,5 @@ ENV CART_SERVICE_ADDR="cart:8081" \
     CHECKOUT_SERVICE_ADDR="checkout:8087" \
     RECOMMENDATION_SERVICE_ADDR="recommendation:8088" \
     AD_SERVICE_ADDR="ad:8089" \
-    SHOPPING_ASSISTANT_SERVICE_ADDR="shoppingassistant:80"
+    SHOPPING_ASSISTANT_SERVICE_ADDR="shoppingassistant:80" \
+    JAEGER_SERVICE_ADDR="jaeger:6831"
