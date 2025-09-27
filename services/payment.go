@@ -72,10 +72,9 @@ func validateAndCharge(amount *pb.Money, card *pb.CreditCardInfo) (string, error
 }
 
 // NewPaymentService returns a new server for the PaymentService
-func NewPaymentService(port int, tracer opentracing.Tracer) *PaymentService {
+func NewPaymentService(port int) *PaymentService {
 	return &PaymentService{
-		port:   port,
-		Tracer: tracer,
+		port: port,
 	}
 }
 
@@ -83,14 +82,12 @@ func NewPaymentService(port int, tracer opentracing.Tracer) *PaymentService {
 type PaymentService struct {
 	port int
 	pb.PaymentServiceServer
-
-	Tracer opentracing.Tracer
 }
 
 // Run starts the server
 func (s *PaymentService) Run() error {
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterPaymentServiceServer(srv, s)

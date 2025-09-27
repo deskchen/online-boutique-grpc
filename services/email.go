@@ -25,10 +25,9 @@ var (
 )
 
 // NewEmailService returns a new server for the EmailService
-func NewEmailService(port int, tracer opentracing.Tracer) *EmailService {
+func NewEmailService(port int) *EmailService {
 	return &EmailService{
-		port:   port,
-		Tracer: tracer,
+		port: port,
 	}
 }
 
@@ -36,14 +35,12 @@ func NewEmailService(port int, tracer opentracing.Tracer) *EmailService {
 type EmailService struct {
 	port int
 	pb.EmailServiceServer
-
-	Tracer opentracing.Tracer
 }
 
 // Run starts the server
 func (s *EmailService) Run() error {
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterEmailServiceServer(srv, s)

@@ -18,11 +18,10 @@ const (
 )
 
 // NewAdService returns a new server for the AdService
-func NewAdService(port int, tracer opentracing.Tracer) *AdService {
+func NewAdService(port int) *AdService {
 	return &AdService{
-		port:   port,
-		ads:    createAdsMap(),
-		Tracer: tracer,
+		port: port,
+		ads:  createAdsMap(),
 	}
 }
 
@@ -31,14 +30,12 @@ type AdService struct {
 	port int
 	ads  map[string]*pb.Ad
 	pb.AdServiceServer
-
-	Tracer opentracing.Tracer
 }
 
 // Run starts the server
 func (s *AdService) Run() error {
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterAdServiceServer(srv, s)

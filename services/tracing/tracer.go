@@ -1,6 +1,7 @@
 package tracing
 
 import (
+	"io"
 	"log"
 	"time"
 
@@ -13,25 +14,26 @@ var (
 	defaultSampleRatio float64 = 1
 )
 
-// Init returns a newly configured tracer
-func Init(serviceName, host string) (opentracing.Tracer, error) {
+// Init returns a newly configured tracer and closer
+func Init(serviceName, host string) (opentracing.Tracer, io.Closer, error) {
 	ratio := defaultSampleRatio
 	log.Printf("jaeger: tracing sample ratio %f", ratio)
 	cfg := jaegercfg.Configuration{
+		ServiceName: serviceName,
 		Sampler: &jaegercfg.SamplerConfig{
 			Type:  "probabilistic",
 			Param: ratio,
 		},
 		Reporter: &jaegercfg.ReporterConfig{
-			LogSpans:            false,
+			LogSpans:            true,
 			BufferFlushInterval: 1 * time.Second,
 			LocalAgentHostPort:  host,
 		},
 	}
 	logger := jaegerlog.StdLogger
-	tracer, _, err := cfg.New(serviceName, jaegercfg.Logger(logger))
+	tracer, closer, err := cfg.NewTracer(jaegercfg.Logger(logger))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return tracer, nil
+	return tracer, closer, nil
 }

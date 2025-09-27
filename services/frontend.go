@@ -15,22 +15,23 @@ import (
 	pb "github.com/deskchen/online-boutique-grpc/protos/onlineboutique"
 	"github.com/deskchen/online-boutique-grpc/services/validator"
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
 
 const (
-	port            = "8080"
+	// port            = "8080"
 	defaultCurrency = "CNY"
-	cookieMaxAge    = 60 * 60 * 48
+	// cookieMaxAge    = 60 * 60 * 48
 
-	cookiePrefix    = "shop_"
-	cookieSessionID = cookiePrefix + "session-id"
-	cookieCurrency  = cookiePrefix + "currency"
+	cookiePrefix = "shop_"
+	// cookieSessionID = cookiePrefix + "session-id"
+	cookieCurrency = cookiePrefix + "currency"
 )
 
-type ctxKeyLog struct{}
+// type ctxKeyLog struct{}
 type ctxKeySessionID struct{}
 type ctxKeyRequestID struct{}
 
@@ -86,14 +87,11 @@ type frontendServer struct {
 	adSvcConn *grpc.ClientConn
 
 	shoppingAssistantSvcAddr string
-
-	Tracer opentracing.Tracer
 }
 
-func NewFrontendServer(port int, tracer opentracing.Tracer) *frontendServer {
+func NewFrontendServer(port int) *frontendServer {
 	return &frontendServer{
-		port:   port,
-		Tracer: tracer,
+		port: port,
 	}
 }
 
@@ -117,12 +115,41 @@ func (fe *frontendServer) Run() error {
 	mustConnGRPC(ctx, &fe.checkoutSvcConn, fe.checkoutSvcAddr)
 	mustConnGRPC(ctx, &fe.adSvcConn, fe.adSvcAddr)
 
-	http.HandleFunc("/", fe.homeHandler)
-	http.HandleFunc("/cart/checkout", fe.placeOrderHandler)
-	http.HandleFunc("/cart", fe.addToCartHandler)
+	http.HandleFunc("/", fe.tracingMiddleware(fe.homeHandler))
+	http.HandleFunc("/cart/checkout", fe.tracingMiddleware(fe.placeOrderHandler))
+	http.HandleFunc("/cart", fe.tracingMiddleware(fe.addToCartHandler))
 
 	log.Printf("frontendServer server running at port: %d", fe.port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", fe.port), nil)
+}
+
+// tracingMiddleware creates OpenTracing spans for HTTP requests
+func (fe *frontendServer) tracingMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tracer := opentracing.GlobalTracer()
+		spanName := fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Path)
+
+		span := tracer.StartSpan(spanName)
+		defer span.Finish()
+
+		// Set HTTP tags
+		ext.HTTPMethod.Set(span, r.Method)
+		ext.HTTPUrl.Set(span, r.URL.String())
+		ext.Component.Set(span, "frontend")
+
+		// Explicitly set service name
+		span.SetTag("service.name", "frontend")
+		span.SetTag("span.kind", "server")
+
+		log.Printf("Created span: %s for service: frontend", spanName)
+
+		// Add span to request context
+		ctx := opentracing.ContextWithSpan(r.Context(), span)
+		r = r.WithContext(ctx)
+
+		// Call the next handler
+		next(w, r)
+	}
 }
 
 // homeHandler handles requests to the home page with detailed timing instrumentation
@@ -453,20 +480,6 @@ func (fe *frontendServer) convertCurrency(ctx context.Context, money *pb.Money, 
 	}
 
 	return result, err
-}
-
-func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*pb.CartItem, currency string, userID string) (*pb.Money, error) {
-	quote, err := pb.NewShippingServiceClient(fe.shippingSvcConn).GetQuote(ctx,
-		&pb.GetQuoteRequest{
-			Address: nil,
-			Items:   items})
-
-	if err != nil {
-		return nil, err
-	}
-
-	localized, err := fe.convertCurrency(ctx, quote.GetCostUsd(), currency, userID)
-	return localized, errors.Wrap(err, "failed to convert currency for shipping cost")
 }
 
 func (fe *frontendServer) getRecommendations(ctx context.Context, userID string, productIDs []string) ([]*pb.Product, error) {

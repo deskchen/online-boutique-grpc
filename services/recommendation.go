@@ -15,10 +15,9 @@ import (
 )
 
 // NewRecommendationService returns a new server for the RecommendationService
-func NewRecommendationService(port int, tracer opentracing.Tracer) *RecommendationService {
+func NewRecommendationService(port int) *RecommendationService {
 	return &RecommendationService{
-		port:   port,
-		Tracer: tracer,
+		port: port,
 	}
 }
 
@@ -30,8 +29,6 @@ type RecommendationService struct {
 
 	productCatalogSvcAddr string
 	productCatalogSvcConn *grpc.ClientConn
-
-	Tracer opentracing.Tracer
 }
 
 // Run starts the server
@@ -42,7 +39,7 @@ func (s *RecommendationService) Run() error {
 	mustConnGRPC(ctx, &s.productCatalogSvcConn, s.productCatalogSvcAddr)
 
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterRecommendationServiceServer(srv, s)

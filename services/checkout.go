@@ -36,10 +36,9 @@ func init() {
 }
 
 // NewCheckoutService returns a new server for the CheckoutService
-func NewCheckoutService(port int, tracer opentracing.Tracer) *CheckoutService {
+func NewCheckoutService(port int) *CheckoutService {
 	return &CheckoutService{
-		port:   port,
-		Tracer: tracer,
+		port: port,
 	}
 }
 
@@ -65,8 +64,6 @@ type CheckoutService struct {
 
 	paymentSvcAddr string
 	paymentSvcConn *grpc.ClientConn
-
-	Tracer opentracing.Tracer
 }
 
 // Run starts the server
@@ -88,7 +85,7 @@ func (cs *CheckoutService) Run() error {
 	mustConnGRPC(ctx, &cs.paymentSvcConn, cs.paymentSvcAddr)
 
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(cs.Tracer)),
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterCheckoutServiceServer(srv, cs)

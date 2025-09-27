@@ -9,6 +9,7 @@ import (
 
 	services "github.com/deskchen/online-boutique-grpc/services"
 	"github.com/deskchen/online-boutique-grpc/services/tracing"
+	"github.com/opentracing/opentracing-go"
 )
 
 type server interface {
@@ -35,33 +36,35 @@ func main() {
 	var srv server
 	var cmd = os.Args[1]
 	println("cmd parsed: ", cmd)
-	tracer, err := tracing.Init(cmd, "jaeger:"+strconv.Itoa(*jaegerport))
+	tracer, closer, err := tracing.Init(cmd, "jaeger:"+strconv.Itoa(*jaegerport))
 	if err != nil {
 		log.Fatalf("ERROR: cannot init Jaeger: %v\n", err)
 	}
+	defer closer.Close()
+	opentracing.SetGlobalTracer(tracer)
 	log.Printf("Jaeger Tracer Initialised for %s", cmd)
 
 	switch cmd {
 	case "cart":
-		srv = services.NewCartService(*cartport, tracer)
+		srv = services.NewCartService(*cartport)
 	case "productcatalog":
-		srv = services.NewProductCatalogService(*productcatalogport, tracer)
+		srv = services.NewProductCatalogService(*productcatalogport)
 	case "currency":
-		srv = services.NewCurrencyService(*currencyport, tracer)
+		srv = services.NewCurrencyService(*currencyport)
 	case "payment":
-		srv = services.NewPaymentService(*paymentport, tracer)
+		srv = services.NewPaymentService(*paymentport)
 	case "shipping":
-		srv = services.NewShippingService(*shippingport, tracer)
+		srv = services.NewShippingService(*shippingport)
 	case "email":
-		srv = services.NewEmailService(*emailport, tracer)
+		srv = services.NewEmailService(*emailport)
 	case "checkout":
-		srv = services.NewCheckoutService(*checkoutport, tracer)
+		srv = services.NewCheckoutService(*checkoutport)
 	case "recommendation":
-		srv = services.NewRecommendationService(*recommendationport, tracer)
+		srv = services.NewRecommendationService(*recommendationport)
 	case "ad":
-		srv = services.NewAdService(*adport, tracer)
+		srv = services.NewAdService(*adport)
 	case "frontend":
-		srv = services.NewFrontendServer(*frontendport, tracer)
+		srv = services.NewFrontendServer(*frontendport)
 	default:
 		log.Fatalf("unknown cmd: %s", cmd)
 	}

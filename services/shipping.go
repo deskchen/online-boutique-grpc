@@ -16,11 +16,10 @@ import (
 )
 
 // NewShippingService returns a new server for the ShippingService
-func NewShippingService(port int, tracer opentracing.Tracer) *ShippingService {
+func NewShippingService(port int) *ShippingService {
 	return &ShippingService{
-		name:   "shipping-service",
-		port:   port,
-		Tracer: tracer,
+		name: "shipping-service",
+		port: port,
 	}
 }
 
@@ -29,14 +28,12 @@ type ShippingService struct {
 	name string
 	port int
 	pb.ShippingServiceServer
-
-	Tracer opentracing.Tracer
 }
 
 // Run starts the server
 func (s *ShippingService) Run() error {
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterShippingServiceServer(srv, s)
@@ -105,7 +102,7 @@ type quote struct {
 }
 
 // createQuoteFromCount generates a shipping quote based on item count.
-func createQuoteFromCount(count int) quote {
+func createQuoteFromCount(_ int) quote {
 	return createQuoteFromFloat(8.99) // Example static rate
 }
 

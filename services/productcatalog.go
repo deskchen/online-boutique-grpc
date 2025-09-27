@@ -32,15 +32,12 @@ type ProductCatalogService struct {
 	mu            sync.RWMutex
 	extraLatency  time.Duration
 	reloadCatalog bool
-
-	Tracer opentracing.Tracer
 }
 
 // NewProductCatalogService creates a new ProductCatalogService
-func NewProductCatalogService(port int, tracer opentracing.Tracer) *ProductCatalogService {
+func NewProductCatalogService(port int) *ProductCatalogService {
 	svc := &ProductCatalogService{
-		port:   port,
-		Tracer: tracer,
+		port: port,
 	}
 
 	// Initialize extra latency from environment variable
@@ -56,12 +53,13 @@ func NewProductCatalogService(port int, tracer opentracing.Tracer) *ProductCatal
 	go func() {
 		for {
 			sig := <-sigs
-			if sig == syscall.SIGUSR1 {
+			switch sig {
+			case syscall.SIGUSR1:
 				log.Println("Enabling catalog reload")
 				svc.mu.Lock()
 				svc.reloadCatalog = true
 				svc.mu.Unlock()
-			} else if sig == syscall.SIGUSR2 {
+			case syscall.SIGUSR2:
 				log.Println("Disabling catalog reload")
 				svc.mu.Lock()
 				svc.reloadCatalog = false
@@ -112,7 +110,7 @@ func (s *ProductCatalogService) parseCatalog() []*pb.Product {
 // Run starts the gRPC server
 func (s *ProductCatalogService) Run() error {
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterProductCatalogServiceServer(srv, s)

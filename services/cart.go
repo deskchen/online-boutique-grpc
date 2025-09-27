@@ -16,10 +16,9 @@ import (
 )
 
 // NewCartService returns a new server for the CartService
-func NewCartService(port int, tracer opentracing.Tracer) *CartService {
+func NewCartService(port int) *CartService {
 	return &CartService{
-		port:   port,
-		Tracer: tracer,
+		port: port,
 	}
 }
 
@@ -30,8 +29,6 @@ type CartService struct {
 
 	cartRedisAddr string
 	rdb           *redis.Client // Redis client
-
-	Tracer opentracing.Tracer
 }
 
 // Run starts the server
@@ -44,7 +41,7 @@ func (s *CartService) Run() error {
 	})
 
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(s.Tracer)),
+		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer())),
 	}
 
 	srv := grpc.NewServer(opts...)
