@@ -15,7 +15,7 @@ var (
 )
 
 // Init returns a newly configured tracer and closer
-func Init(serviceName, host string) (opentracing.Tracer, io.Closer, error) {
+func Init(serviceName string) (opentracing.Tracer, io.Closer, error) {
 	ratio := defaultSampleRatio
 	log.Printf("jaeger: tracing sample ratio %f", ratio)
 	cfg := jaegercfg.Configuration{
@@ -27,7 +27,7 @@ func Init(serviceName, host string) (opentracing.Tracer, io.Closer, error) {
 		Reporter: &jaegercfg.ReporterConfig{
 			LogSpans:            true,
 			BufferFlushInterval: 1 * time.Second,
-			LocalAgentHostPort:  host,
+			CollectorEndpoint:   "http://jaeger:14268/api/traces",
 		},
 	}
 	logger := jaegerlog.StdLogger

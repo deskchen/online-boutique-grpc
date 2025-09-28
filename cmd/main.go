@@ -5,8 +5,6 @@ import (
 	"log"
 	"os"
 
-	"strconv"
-
 	services "github.com/deskchen/online-boutique-grpc/services"
 	"github.com/deskchen/online-boutique-grpc/services/tracing"
 	"github.com/opentracing/opentracing-go"
@@ -29,14 +27,13 @@ func main() {
 		checkoutport       = flag.Int("checkoutport", 8087, "checkout service port")
 		recommendationport = flag.Int("recommendationport", 8088, "recommendation service port")
 		adport             = flag.Int("adport", 8089, "ad service port")
-		jaegerport         = flag.Int("jaegerport", 6831, "jaeger agent port")
 	)
 	flag.Parse()
 
 	var srv server
 	var cmd = os.Args[1]
 	println("cmd parsed: ", cmd)
-	tracer, closer, err := tracing.Init(cmd, "jaeger:"+strconv.Itoa(*jaegerport))
+	tracer, closer, err := tracing.Init(cmd)
 	if err != nil {
 		log.Fatalf("ERROR: cannot init Jaeger: %v\n", err)
 	}
